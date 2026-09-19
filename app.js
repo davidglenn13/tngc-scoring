@@ -106,7 +106,7 @@ $("#startRoundBtn").onclick=async()=>{
   await ensureCloudOuting();
   $("#setupView").classList.add("hidden");
   $("#scoreView").classList.remove("hidden");
-  $("#bottomNav").classList.remove("hidden");
+  $("#nav").classList.remove("hidden");
   renderScoring();
   renderGames();
   renderScorecard();
@@ -126,7 +126,7 @@ $("#resetBtn").onclick=()=>{
   $("#outingName").value="TNGC Round"; $("#outingDate").value=today;
   const u=new URL(location.href); u.searchParams.delete("outing"); history.replaceState(null,"",u);
   renderPlayers();
-  $("#bottomNav").classList.add("hidden");
+  $("#nav").classList.add("hidden");
   ["scoreView","gamesView","scorecardView","ledgerView"].forEach(id=>$("#"+id).classList.add("hidden"));
   $("#setupView").classList.remove("hidden");
   setSyncStatus("New outing ready","");
@@ -722,7 +722,7 @@ async function loadCloudOuting(id){
     renderPlayers();
     $("#setupView").classList.add("hidden");
     $("#scoreView").classList.remove("hidden");
-    $("#bottomNav").classList.remove("hidden");
+    $("#nav").classList.remove("hidden");
     renderScoring();
     renderGames();
     renderScorecard();
@@ -797,10 +797,10 @@ function loadLocal(){
 }
 
 
-document.querySelectorAll("#bottomNav [data-view]").forEach(btn=>btn.onclick=()=>{
+document.querySelectorAll("#nav [data-view]").forEach(btn=>btn.onclick=()=>{
   const target=btn.dataset.view;
   ["scoreView","gamesView","scorecardView","ledgerView"].forEach(id=>$("#"+id).classList.toggle("hidden",id!==target));
-  document.querySelectorAll("#bottomNav [data-view]").forEach(b=>b.classList.toggle("active",b===btn));
+  document.querySelectorAll("#nav [data-view]").forEach(b=>b.classList.toggle("active",b===btn));
   if(target==="gamesView")renderGames();
   if(target==="scorecardView")renderScorecard();
   if(target==="ledgerView")renderLedger();

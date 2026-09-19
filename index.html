@@ -9,16 +9,26 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div>
-      <h1>TNGC Scoring</h1>
-      <div id="syncStatus" class="sync-status">Local beta</div>
+  <header class="hero">
+    <div class="brand">
+      <div class="club-mark" aria-hidden="true">T</div>
+      <div>
+        <div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div>
+        <h1>TNGC Scoring</h1>
+        <div class="sub">Live Scoring · Lake Norman, North Carolina</div>
+      </div>
     </div>
-    <button id="resetBtn" class="ghost">New Outing</button>
+    <div class="header-actions"><span id="syncStatus" class="pill">Local beta</span><button id="resetBtn" class="secondary">New Game</button></div>
   </header>
 
-  <main class="shell">
+  <nav id="nav" class="hidden" aria-label="Game navigation">
+    <button data-view="scoreView" class="active">Live Scoring</button>
+    <button data-view="gamesView">Side Games</button>
+    <button data-view="ledgerView">The Ledger</button>
+    <button data-view="scorecardView">Gross Scorecard</button>
+  </nav>
+
+  <main id="app" class="shell">
     <section id="setupView" class="card">
       <div class="section-heading">
         <div>
@@ -102,13 +112,6 @@
       <div id="ledgerContent"></div>
     </section>
   </main>
-
-  <nav id="bottomNav" class="bottom-nav hidden">
-    <button data-view="scoreView" class="active">Score</button>
-    <button data-view="gamesView">Games</button>
-    <button data-view="scorecardView">Scorecard</button>
-    <button data-view="ledgerView">Ledger</button>
-  </nav>
 
   <script src="app.js"></script>
 </body>
