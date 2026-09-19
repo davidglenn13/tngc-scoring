@@ -526,7 +526,7 @@ function renderNassauTeams(){
 function applyOrganizerMode(){
   const editableSelectors=[
     "#outingName","#outingDate","#addPlayerBtn","#startRoundBtn",
-    "#nassauEnabled","#nassauWager","#fortyEnabled","#fortyWager"
+    "#sideGame","#sideGameWager"
   ];
   editableSelectors.forEach(s=>{const el=$(s); if(el) el.disabled=!state.organizerMode;});
   document.querySelectorAll("#players input,#players select,#players button").forEach(el=>el.disabled=!state.organizerMode);
@@ -535,12 +535,11 @@ function applyOrganizerMode(){
 }
 
 function renderGames(){
-  if(!$("#nassauEnabled")) return;
-  $("#nassauEnabled").checked=!!state.games?.nassau?.enabled;
-  $("#nassauWager").value=state.games?.nassau?.wager ?? 5;
-  $("#nassauFormat").value=state.games?.nassau?.format ?? "555111";
-  $("#fortyEnabled").checked=!!state.games?.forty?.enabled;
-  $("#fortyWager").value=state.games?.forty?.wager ?? 5;
+  if(!$("#sideGame")) return;
+  const nassau=state.games?.nassau||{}, forty=state.games?.forty||{};
+  const selection=nassau.enabled ? `nassau${nassau.format||"555111"}` : forty.enabled ? "forty" : "none";
+  $("#sideGame").value=selection;
+  $("#sideGameWager").value=nassau.enabled ? (nassau.wager??5) : (forty.wager??5);
   const lines=[];
   if(state.games?.nassau?.enabled){
     for(const r of allNassauResults()){
@@ -553,7 +552,7 @@ function renderGames(){
     const r=fortyBallResult();
     lines.push(`40 Ball: G1 ${r.results[1].total} pts · G2 ${r.results[2].total} pts${r.complete?(r.winner?` · Group ${r.winner} wins`:" · Tie"):" · in progress"}`);
   }
-  $("#gameStatus").innerHTML=lines.length?lines.map(x=>`<div>${escapeHtml(x)}</div>`).join(""):"Select the games being played today.";
+  $("#gameStatus").innerHTML=lines.length?lines.map(x=>`<div>${escapeHtml(x)}</div>`).join(""):"Stableford scoring is always active. Choose a side game above if the group is playing one.";
   renderNassauTeams();
   applyOrganizerMode();
 }
@@ -807,17 +806,21 @@ document.querySelectorAll("#nav [data-view]").forEach(btn=>btn.onclick=()=>{
 });
 
 function bindGameControls(){
-  ["nassauEnabled","nassauWager","nassauFormat","fortyEnabled","fortyWager"].forEach(id=>{
+  ["sideGame","sideGameWager"].forEach(id=>{
     const el=$("#"+id); if(!el)return;
     el.addEventListener("change",()=>{
       state.games ??={nassau:{enabled:false,wager:5,presses:[]},forty:{enabled:false,wager:5}};
       state.games.nassau ??={enabled:false,wager:5,presses:[]};
       state.games.forty ??={enabled:false,wager:5};
-      state.games.nassau.enabled=$("#nassauEnabled").checked;
-      state.games.nassau.wager=Math.max(0,Number($("#nassauWager").value||0));
-      state.games.nassau.format=$("#nassauFormat").value;
-      state.games.forty.enabled=$("#fortyEnabled").checked;
-      state.games.forty.wager=Math.max(0,Number($("#fortyWager").value||0));
+      const game=$("#sideGame").value;
+      const wager=Math.max(0,Math.min(999,Number($("#sideGameWager").value||0)));
+      state.games.nassau.enabled=game.startsWith("nassau");
+      state.games.forty.enabled=game==="forty";
+      if(state.games.nassau.enabled){
+        state.games.nassau.format=game==="nassau666"?"666":"555111";
+        state.games.nassau.wager=wager;
+      }
+      if(state.games.forty.enabled) state.games.forty.wager=wager;
       renderGames(); renderLedger(); saveLocal();
     });
   });

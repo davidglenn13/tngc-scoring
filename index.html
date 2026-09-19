@@ -7,6 +7,7 @@
   <title>TNGC Scoring</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css?v=915f83c" />
+  <style>.game-picker{display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:end;margin:12px 0}.game-picker .eyebrow{margin-bottom:5px}@media(max-width:760px){.game-picker{grid-template-columns:1fr}}</style>
 </head>
 <body>
   <header class="hero">
@@ -91,12 +92,9 @@
       <div class="section-heading">
         <div><div class="eyebrow">TODAY'S GAMES</div><h2>Games & Wagers</h2></div>
       </div>
-      <div class="game-grid">
-        <label class="game-card"><span><b>Nassau</b><small>Rotating 5-5-5-1-1-1 or 6-6-6</small></span><input id="nassauEnabled" type="checkbox"></label>
-        <label>Nassau wager per match ($)<input id="nassauWager" type="number" min="0" max="999" step="1" value="5"></label>
-        <label>Nassau format<select id="nassauFormat"><option value="555111">Rotating 5-5-5-3</option><option value="666">Rotating 6-6-6</option></select></label>
-        <label class="game-card"><span><b>40 Ball</b><small>Best 40 Stableford points per group</small></span><input id="fortyEnabled" type="checkbox"></label>
-        <label>40 Ball wager per player ($)<input id="fortyWager" type="number" min="0" max="999" step="1" value="5"></label>
+      <div class="game-picker">
+        <div><div class="eyebrow">SIDE GAME FOR THIS ROUND</div><label>Game<select id="sideGame"><option value="none">None</option><option value="forty">40 Ball</option><option value="nassau555111">Nassau 5-5-5-3</option><option value="nassau666">Nassau 6-6-6</option></select></label></div>
+        <label>Wager ($)<input id="sideGameWager" type="number" min="0" max="999" step="1" value="5"></label>
       </div>
       <div id="nassauTeams" class="team-config"></div>
       <div id="gameStatus" class="summary"></div>
