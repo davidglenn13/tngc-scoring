@@ -287,6 +287,11 @@ function teamName(team){ return team.map(p=>p.name.split(" ")[0]).join(" / "); }
 
 
 function nassauSegments(){
+  if(state.games?.nassau?.format==="666") return [
+    {key:"first6",name:"Holes 1–6",holes:[1,2,3,4,5,6],pairing:0},
+    {key:"second6",name:"Holes 7–12",holes:[7,8,9,10,11,12],pairing:1},
+    {key:"third6",name:"Holes 13–18",holes:[13,14,15,16,17,18],pairing:2}
+  ];
   return [
     {key:"first5",name:"Holes 1–5",holes:[1,2,3,4,5],pairing:0},
     {key:"second5",name:"Holes 6–10",holes:[6,7,8,9,10],pairing:1},
@@ -533,6 +538,7 @@ function renderGames(){
   if(!$("#nassauEnabled")) return;
   $("#nassauEnabled").checked=!!state.games?.nassau?.enabled;
   $("#nassauWager").value=state.games?.nassau?.wager ?? 5;
+  $("#nassauFormat").value=state.games?.nassau?.format ?? "555111";
   $("#fortyEnabled").checked=!!state.games?.forty?.enabled;
   $("#fortyWager").value=state.games?.forty?.wager ?? 5;
   const lines=[];
@@ -801,7 +807,7 @@ document.querySelectorAll("#bottomNav [data-view]").forEach(btn=>btn.onclick=()=
 });
 
 function bindGameControls(){
-  ["nassauEnabled","nassauWager","fortyEnabled","fortyWager"].forEach(id=>{
+  ["nassauEnabled","nassauWager","nassauFormat","fortyEnabled","fortyWager"].forEach(id=>{
     const el=$("#"+id); if(!el)return;
     el.addEventListener("change",()=>{
       state.games ??={nassau:{enabled:false,wager:5,presses:[]},forty:{enabled:false,wager:5}};
@@ -809,6 +815,7 @@ function bindGameControls(){
       state.games.forty ??={enabled:false,wager:5};
       state.games.nassau.enabled=$("#nassauEnabled").checked;
       state.games.nassau.wager=Math.max(0,Number($("#nassauWager").value||0));
+      state.games.nassau.format=$("#nassauFormat").value;
       state.games.forty.enabled=$("#fortyEnabled").checked;
       state.games.forty.wager=Math.max(0,Number($("#fortyWager").value||0));
       renderGames(); renderLedger(); saveLocal();

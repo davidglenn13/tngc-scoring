@@ -22,6 +22,7 @@ const checks=[
  ["shared game join flow",app.includes("showJoinGame")&&app.includes("Join Game")&&app.includes("tngc-joined-")],
  ["multi-device polling",app.includes("setInterval")&&app.includes("3000")],
  ["rotating Nassau engine",app.includes("allNassauResults")&&app.includes("Holes 1–5")&&app.includes("Hole 16")&&app.includes("singleHole:true")&&app.includes("pairing:2")],
+ ["6-6-6 Nassau option",html.includes('id="nassauFormat"')&&app.includes('format==="666"')],
  ["explicit Nassau teams",app.includes("nassauTeamsForGroup")&&html.includes('id="nassauTeams"')],
  ["manual Nassau presses",app.includes("addPress")&&app.includes("Press Now")&&app.includes("pressOutcome")],
  ["press the press",app.includes("Press the Press")&&app.includes('type:"press-back"')&&app.includes("parentId")],
