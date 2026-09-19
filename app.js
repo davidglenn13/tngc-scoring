@@ -171,15 +171,16 @@ function renderScoring(){
   groupPlayers.forEach(p=>{
     const key=`${p.id}-${state.hole}`;
     const ch=courseHandicap(Number(p.index),p.tee);
+    const strokes=strokesOnHole(p,state.hole);
+    const gross=Number(state.scores[key]||0);
+    const net=gross?gross-strokes:null;
+    const points=gross?stablefordPoints(p,state.hole):null;
     const row=document.createElement("div");
-    row.className="score-row";
+    row.className="score-player";
     row.innerHTML=`
-      <div><div class="player-name">${escapeHtml(p.name)}</div><div class="player-meta">${p.tee} · Index ${Number(p.index).toFixed(1)} · Course Hcp ${ch}</div></div>
-      <div class="score-stepper">
-        <button type="button" class="score-step" data-step="-1" aria-label="Decrease score">−</button>
-        <input class="score-input" data-score-key="${key}" inputmode="numeric" type="number" min="1" max="15" value="${state.scores[key]??""}" placeholder="—">
-        <button type="button" class="score-step" data-step="1" aria-label="Increase score">+</button>
-      </div>`;
+      <div class="score-player-name"><b>${escapeHtml(p.name)}</b><span>${p.tee} · Index ${Number(p.index).toFixed(1)} · CH ${ch}</span></div>
+      <input class="score-input" data-score-key="${key}" inputmode="numeric" type="number" min="1" max="15" value="${state.scores[key]??""}" placeholder="—">
+      <div class="score-result">${gross?`Net ${net} · <b>${points} pts</b>`:`Enter gross · ${strokes?`${strokes} stroke${strokes>1?"s":""}`:"no stroke"}`}</div>`;
     const input=row.querySelector("input");
     input.oninput=e=>{
       let v=e.target.value===""?"":Math.max(1,Math.min(15,Number(e.target.value)));
@@ -189,12 +190,6 @@ function renderScoring(){
       pushScoreCloud(key,v);
       renderGames(); renderScorecard(); renderLedger(); renderPressCard();
     };
-    row.querySelectorAll("[data-step]").forEach(btn=>btn.onclick=()=>{
-      const cur=Number(input.value||COURSE.par[state.hole-1]);
-      const next=Math.max(1,Math.min(15,cur+Number(btn.dataset.step)));
-      input.value=next; state.scores[key]=next;
-      saveLocal(true); pushScoreCloud(key,next); renderScoring();
-    });
     rows.appendChild(row);
   });
   const entered=Object.values(state.scores).filter(v=>v!=="").length;

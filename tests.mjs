@@ -34,7 +34,7 @@ const checks=[
  ["game config cloud sync",common.includes("games:")&&common.includes("nassau")&&common.includes("forty")],
  ["team config cloud sync",common.includes("nassauTeams")],
  ["organizer cloud sync",common.includes("organizerMode")],
- ["score stepper controls",html.includes('id="groupProgress"')&&app.includes('data-step="1"')],
+ ["Ballyhack-style gross score entry",html.includes('id="groupProgress"')&&app.includes('class="score-input"')&&app.includes('Enter gross')],
  ["foursome-size validation",app.includes("Each foursome can have no more than 4 players")],
  ["duplicate-name validation",app.includes("Player names must be unique")],
  ["round complete detection",app.includes("Round complete.")],
