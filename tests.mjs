@@ -2,15 +2,17 @@
 import fs from "node:fs";
 const app=fs.readFileSync("app.js","utf8");
 const html=fs.readFileSync("index.html","utf8");
-const api=fs.readFileSync("functions/api/outings.js","utf8");
-const apiId=fs.readFileSync("functions/api/outings/[id].js","utf8");
-const common=fs.readFileSync("functions/api/_common.js","utf8");
-const schema=fs.readFileSync("migrations/0001_init.sql","utf8");
+const api=fs.readFileSync("outings.js","utf8");
+const apiId=fs.readFileSync("[id].js","utf8");
+const common=fs.readFileSync("_common.js","utf8");
+const schema=fs.readFileSync("0001_init.sql","utf8");
 const checks=[
  ["8-player cap",app.includes("state.players.length >= 8")],
  ["no PIN workflow",!html.toLowerCase().includes("pin")],
  ["mixed tee selector",app.includes("COURSE.tees")],
- ["two groups",app.includes('value="2"')],
+ ["two-foursome setup",app.includes("hasSecondFoursome")&&app.includes("state.players.length >= 5")],
+ ["single foursome does not require foursome two",app.includes("hasSecondFoursome() && (g1===0 || g2===0)")],
+ ["foursome selector hidden for 1-4 players",app.includes("showFoursomeSelector")&&html.includes('id="foursomeTabs"')],
  ["circular navigation after 18",app.includes("state.visited18")],
  ["TNGC branding",html.includes("TNGC Scoring")],
  ["shared outing create API",api.includes("INSERT INTO outings")],
@@ -30,7 +32,7 @@ const checks=[
  ["team config cloud sync",common.includes("nassauTeams")],
  ["organizer cloud sync",common.includes("organizerMode")],
  ["score stepper controls",html.includes('id="groupProgress"')&&app.includes('data-step="1"')],
- ["group-size validation",app.includes("Each group can have no more than 4 players")],
+ ["foursome-size validation",app.includes("Each foursome can have no more than 4 players")],
  ["duplicate-name validation",app.includes("Player names must be unique")],
  ["round complete detection",app.includes("Round complete.")],
  ["sync status handling",html.includes('id="syncStatus"')&&app.includes("setSyncStatus")],

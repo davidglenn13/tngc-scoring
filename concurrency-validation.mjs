@@ -1,7 +1,7 @@
 
 import fs from "node:fs";
 const app=fs.readFileSync("app.js","utf8");
-const api=fs.readFileSync("functions/api/outings/[id].js","utf8");
+const api=fs.readFileSync("[id].js","utf8");
 if(!api.includes("onRequestPatch")) throw new Error("PATCH handler missing");
 if(!api.includes("state.scores[key] = value")) throw new Error("score merge missing");
 if(!app.includes("pushScoreCloud")) throw new Error("client granular score sync missing");

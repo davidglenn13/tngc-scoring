@@ -53,16 +53,27 @@ function addPlayer(data={}){
   renderPlayers();
 }
 
+function hasSecondFoursome(){ return state.players.length >= 5; }
+
+function normalizeFoursomes(){
+  if(!hasSecondFoursome()){
+    state.players.forEach(p=>{ p.group=1; });
+    state.group=1;
+  }
+}
+
 function renderPlayers(){
+  normalizeFoursomes();
   playersEl.innerHTML = "";
+  const showFoursomeSelector=hasSecondFoursome();
   state.players.forEach((p,i)=>{
     const row = document.createElement("div");
-    row.className="player-row";
+    row.className=`player-row${showFoursomeSelector?"":" single-foursome"}`;
     row.innerHTML=`
       <label>Name<input data-k="name" value="${escapeHtml(p.name)}" placeholder="Player ${i+1}"></label>
       <label>Index<input data-k="index" type="number" step=".1" min="-10" max="54" value="${p.index}"></label>
       <label>Tee<select data-k="tee">${Object.keys(COURSE.tees).map(t=>`<option ${t===p.tee?"selected":""}>${t}</option>`).join("")}</select></label>
-      <label>Group<select data-k="group"><option value="1" ${p.group==1?"selected":""}>1</option><option value="2" ${p.group==2?"selected":""}>2</option></select></label>
+      ${showFoursomeSelector?`<label>Foursome<select data-k="group"><option value="1" ${p.group==1?"selected":""}>1</option><option value="2" ${p.group==2?"selected":""}>2</option></select></label>`:""}
       <button class="secondary" aria-label="Remove">×</button>`;
     row.querySelectorAll("input,select").forEach(el=>el.addEventListener("change",()=>{
       let v=el.value;
@@ -89,8 +100,8 @@ $("#startRoundBtn").onclick=async()=>{
   const names=state.players.map(p=>p.name.trim().toLowerCase());
   if(new Set(names).size!==names.length) return alert("Player names must be unique.");
   const g1=state.players.filter(p=>p.group===1).length, g2=state.players.filter(p=>p.group===2).length;
-  if(g1>4 || g2>4) return alert("Each group can have no more than 4 players.");
-  if(g1===0 || g2===0) return alert("Assign at least one player to each group.");
+  if(g1>4 || g2>4) return alert("Each foursome can have no more than 4 players.");
+  if(hasSecondFoursome() && (g1===0 || g2===0)) return alert("Assign at least one player to each foursome.");
   state.hole=1; state.group=1; state.visited18=false;
   await ensureCloudOuting();
   $("#setupView").classList.add("hidden");
@@ -145,12 +156,15 @@ function renderScoring(){
   $("#holeNumber").textContent=state.hole;
   const idx=state.hole-1;
   $("#holeMeta").textContent=`Par ${COURSE.par[idx]} · Handicap ${COURSE.handicap[idx]}`;
+  const showFoursomeSelector=hasSecondFoursome();
+  $("#foursomeTabs").classList.toggle("hidden",!showFoursomeSelector);
+  if(!showFoursomeSelector) state.group=1;
   document.querySelectorAll(".group-tab").forEach(b=>b.classList.toggle("active",Number(b.dataset.group)===state.group));
   $("#prevHole").style.opacity=(state.hole===1&&!state.visited18)?.35:1;
 
   const groupPlayers=state.players.filter(p=>p.group===state.group);
   const completedHoles=[...Array(18)].filter((_,i)=>groupPlayers.length>0 && groupPlayers.every(p=>Number(state.scores[`${p.id}-${i+1}`]||0)>0)).length;
-  $("#groupProgress").textContent=`Group ${state.group}: ${completedHoles}/18 holes complete`;
+  $("#groupProgress").textContent=`${showFoursomeSelector?`Foursome ${state.group}: `:""}${completedHoles}/18 holes complete`;
   const rows=$("#scoreRows"); rows.innerHTML="";
   groupPlayers.forEach(p=>{
     const key=`${p.id}-${state.hole}`;
@@ -779,4 +793,3 @@ if(sharedId){
   else renderPlayers();
   if(state.outingId) updateShareUrl();
 }
-
