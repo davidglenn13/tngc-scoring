@@ -250,7 +250,7 @@ function groupPlayers(g){ return state.players.filter(p=>p.group===g); }
 
 function nassauTeamsForGroup(group,pairing=0){
   const ps=groupPlayers(group);
-  // Ballyhack's rotating-partner Nassau: 5-5-5-3.
+  // Ballyhack's rotating-partner Nassau: 5-5-5-1-1-1.
   // With a full foursome, partners rotate for each segment.
   if(ps.length===4){
     const orders=[[0,1,2,3],[0,2,1,3],[0,3,1,2]];
@@ -291,7 +291,9 @@ function nassauSegments(){
     {key:"first5",name:"Holes 1–5",holes:[1,2,3,4,5],pairing:0},
     {key:"second5",name:"Holes 6–10",holes:[6,7,8,9,10],pairing:1},
     {key:"third5",name:"Holes 11–15",holes:[11,12,13,14,15],pairing:2},
-    {key:"last3",name:"Holes 16–18",holes:[16,17,18],pairing:0}
+    {key:"hole16",name:"Hole 16",holes:[16],pairing:0,singleHole:true},
+    {key:"hole17",name:"Hole 17",holes:[17],pairing:1,singleHole:true},
+    {key:"hole18",name:"Hole 18",holes:[18],pairing:2,singleHole:true}
   ];
 }
 
@@ -334,6 +336,7 @@ function pressOutcome(press){
 function canPressNow(group){
   if(!state.games?.nassau?.enabled) return {ok:false,reason:"Nassau is not enabled."};
   const seg=currentNassauSegment(state.hole);
+  if(seg.singleHole) return {ok:false,reason:`${seg.name} is a standalone Nassau match; presses are not available.`,seg};
   const next=nextUnplayedHoleForGroup(group,seg);
   if(next===null) return {ok:false,reason:"This Nassau match is complete.",seg};
   if(state.hole!==next) return {ok:false,reason:`Presses can only start on the next unplayed hole, Hole ${next}.`,seg};

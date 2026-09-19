@@ -21,7 +21,7 @@ const checks=[
  ["share-link support",app.includes('searchParams.set("outing"')],
  ["shared game join flow",app.includes("showJoinGame")&&app.includes("Join Game")&&app.includes("tngc-joined-")],
  ["multi-device polling",app.includes("setInterval")&&app.includes("3000")],
- ["rotating Nassau engine",app.includes("allNassauResults")&&app.includes("Holes 1–5")&&app.includes("Holes 16–18")&&app.includes("pairing:2")],
+ ["rotating Nassau engine",app.includes("allNassauResults")&&app.includes("Holes 1–5")&&app.includes("Hole 16")&&app.includes("singleHole:true")&&app.includes("pairing:2")],
  ["explicit Nassau teams",app.includes("nassauTeamsForGroup")&&html.includes('id="nassauTeams"')],
  ["manual Nassau presses",app.includes("addPress")&&app.includes("Press Now")&&app.includes("pressOutcome")],
  ["press the press",app.includes("Press the Press")&&app.includes('type:"press-back"')&&app.includes("parentId")],
