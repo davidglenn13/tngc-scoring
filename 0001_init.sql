@@ -1,0 +1,11 @@
+
+CREATE TABLE IF NOT EXISTS outings (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  outing_date TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  state_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_outings_date ON outings(outing_date);

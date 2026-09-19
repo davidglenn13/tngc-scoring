@@ -1,0 +1,8 @@
+{
+  "name": "TNGC Scoring",
+  "short_name": "TNGC Scoring",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f1ec",
+  "theme_color": "#111111"
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>TNGC Scoring</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div>
+      <h1>TNGC Scoring</h1>
+      <div id="syncStatus" class="sync-status">Local beta</div>
+    </div>
+    <button id="resetBtn" class="ghost">New Outing</button>
+  </header>
+
+  <main class="shell">
+    <section id="setupView" class="card">
+      <div class="section-heading">
+        <div>
+          <h2>Set Up Today’s Round</h2>
+          <p>Up to 8 players · mixed tees supported · two groups</p>
+        </div>
+        <span class="badge">BETA</span>
+      </div>
+
+      <div class="field-grid">
+        <label>Outing name
+          <input id="outingName" value="TNGC Round" />
+        </label>
+        <label>Date
+          <input id="outingDate" type="date" />
+        </label>
+      </div>
+      <label class="organizer-toggle"><span><b>Organizer Mode</b><small>Allows setup, tee, group, team, and wager changes on this device.</small></span><input id="organizerMode" type="checkbox" checked></label>
+
+      <h3>Players</h3>
+      <div id="players"></div>
+      <div class="actions">
+        <button id="addPlayerBtn" class="secondary">+ Add Player</button>
+        <button id="startRoundBtn" class="primary">Start Scoring</button>
+      </div>
+      <p class="fineprint">Starting a new outing clears the active round on this device. TNGC men’s tee ratings, par, and stroke indexes are loaded from the current validated course data.</p>
+    </section>
+
+    <section id="scoreView" class="card hidden">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow" id="roundLabel"></div>
+          <h2>Live Scoring</h2>
+        </div>
+        <button id="editSetupBtn" class="ghost">Edit Setup</button>
+      </div>
+
+      <div class="hole-nav">
+        <button id="prevHole" class="circle">‹</button>
+        <div class="hole-center">
+          <span class="eyebrow">HOLE</span>
+          <strong id="holeNumber">1</strong>
+          <span id="holeMeta"></span>
+        </div>
+        <button id="nextHole" class="circle">›</button>
+      </div>
+
+      <div class="group-tabs">
+        <button class="group-tab active" data-group="1">Group 1</button>
+        <button class="group-tab" data-group="2">Group 2</button>
+      </div>
+
+      <div id="groupProgress" class="group-progress"></div>
+      <div id="scoreRows"></div>
+      <div id="summary" class="summary"></div>
+      <section id="pressCard" class="press-card hidden"></section>
+    </section>
+
+    <section id="gamesView" class="card hidden">
+      <div class="section-heading">
+        <div><div class="eyebrow">TODAY'S GAMES</div><h2>Games & Wagers</h2></div>
+      </div>
+      <div class="game-grid">
+        <label class="game-card"><span><b>Nassau</b><small>Front 9 · Back 9 · Overall</small></span><input id="nassauEnabled" type="checkbox"></label>
+        <label>Nassau wager per match ($)<input id="nassauWager" type="number" min="0" max="999" step="1" value="5"></label>
+        <label class="game-card"><span><b>40 Ball</b><small>Best 40 Stableford points per group</small></span><input id="fortyEnabled" type="checkbox"></label>
+        <label>40 Ball wager per player ($)<input id="fortyWager" type="number" min="0" max="999" step="1" value="5"></label>
+      </div>
+      <div id="nassauTeams" class="team-config"></div>
+      <div id="gameStatus" class="summary"></div>
+    </section>
+
+    <section id="scorecardView" class="card hidden">
+      <div class="section-heading"><div><div class="eyebrow">GROSS SCORES</div><h2>Scorecard</h2></div></div>
+      <div id="scorecardTable"></div>
+    </section>
+
+    <section id="ledgerView" class="card hidden">
+      <div class="section-heading"><div><div class="eyebrow">ALL SIDE BETS</div><h2>The Ledger</h2></div></div>
+      <div id="ledgerContent"></div>
+    </section>
+  </main>
+
+  <nav id="bottomNav" class="bottom-nav hidden">
+    <button data-view="scoreView" class="active">Score</button>
+    <button data-view="gamesView">Games</button>
+    <button data-view="scorecardView">Scorecard</button>
+    <button data-view="ledgerView">Ledger</button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>

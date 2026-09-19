@@ -1,0 +1,47 @@
+TNGC Scoring Local QA Report
+
+Status: LOCAL BUILD PASSES
+
+Validated locally
+- 8 players maximum
+- Two groups, maximum four players each
+- Unique player names
+- Mixed tees and course-handicap differentiation
+- Organizer Mode
+- No player PINs
+- Mobile score steppers
+- Group progress / round complete state
+- Hole 1 backward lock and circular navigation after visiting Hole 18
+- Nassau Front 9 / Back 9 / Overall
+- Explicit Nassau sides
+- Manual Nassau presses
+- Multiple press settlement
+- 40 Ball best 40 Stableford points
+- Gross scorecard
+- The Ledger / who-pays-who
+- Shared-outing API contracts
+- Local storage resilience
+- Online/offline sync-state UI
+- 144-score full-outing regression
+- Post-entry counted-ball edits recalculate Nassau
+- Incomplete scores are handled
+- All settlement simulations remain zero-sum
+
+Still requires Cloudflare/live validation
+- D1 binding and migrations
+- True simultaneous two-phone writes
+- Deployed iPhone browser/layout QA
+- Final verification of current TNGC tee/rating/slope/hole-handicap data
+
+Course data confirmation
+- TNGC scorecard par and men’s stroke indexes confirmed for holes 1–18
+- Total par confirmed at 72
+- GHIN men’s tee rating/slope data validated separately
+
+Final pre-Cloudflare pass
+- Score entry changed to granular per-score PATCH writes
+- Simultaneous-group lost-write risk reduced before live D1 testing
+- Polling preserves the score field currently being edited
+- Provisional course-data wording removed
+- V1 feature set frozen
+- Cloudflare beta deployment checklist added

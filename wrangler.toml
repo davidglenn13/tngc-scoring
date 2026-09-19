@@ -1,0 +1,9 @@
+name = "tngc-scoring-beta"
+compatibility_date = "2026-09-19"
+pages_build_output_dir = "."
+
+# Add the D1 binding after creating the beta database:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "tngc-scoring-beta"
+# database_id = "<CLOUDFLARE_D1_DATABASE_ID>"

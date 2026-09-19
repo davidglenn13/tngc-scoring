@@ -1,0 +1,43 @@
+
+import fs from "node:fs";
+const app=fs.readFileSync("app.js","utf8");
+const html=fs.readFileSync("index.html","utf8");
+const api=fs.readFileSync("functions/api/outings.js","utf8");
+const apiId=fs.readFileSync("functions/api/outings/[id].js","utf8");
+const common=fs.readFileSync("functions/api/_common.js","utf8");
+const schema=fs.readFileSync("migrations/0001_init.sql","utf8");
+const checks=[
+ ["8-player cap",app.includes("state.players.length >= 8")],
+ ["no PIN workflow",!html.toLowerCase().includes("pin")],
+ ["mixed tee selector",app.includes("COURSE.tees")],
+ ["two groups",app.includes('value="2"')],
+ ["circular navigation after 18",app.includes("state.visited18")],
+ ["TNGC branding",html.includes("TNGC Scoring")],
+ ["shared outing create API",api.includes("INSERT INTO outings")],
+ ["shared outing get/update API",apiId.includes("UPDATE outings")],
+ ["D1 schema",schema.includes("CREATE TABLE IF NOT EXISTS outings")],
+ ["share-link support",app.includes('searchParams.set("outing"')],
+ ["multi-device polling",app.includes("setInterval")&&app.includes("3000")],
+ ["Nassau engine",app.includes("allNassauResults")&&app.includes("Front 9")&&app.includes("Overall")],
+ ["explicit Nassau teams",app.includes("nassauTeamsForGroup")&&html.includes('id="nassauTeams"')],
+ ["manual Nassau presses",app.includes("addPress")&&app.includes("Press Now")&&app.includes("pressOutcome")],
+ ["presses included in ledger",app.includes("for(const p of (state.games.nassau.presses||[]))")],
+ ["organizer mode",html.includes('id="organizerMode"')&&app.includes("applyOrganizerMode")],
+ ["40 Ball engine",app.includes("fortyBallResult")&&app.includes("slice(0,40)")],
+ ["ledger settlement",app.includes("paymentsFromNet")&&html.includes("The Ledger")],
+ ["gross scorecard",app.includes("renderScorecard")&&html.includes("Scorecard")],
+ ["game config cloud sync",common.includes("games:")&&common.includes("nassau")&&common.includes("forty")],
+ ["team config cloud sync",common.includes("nassauTeams")],
+ ["organizer cloud sync",common.includes("organizerMode")],
+ ["score stepper controls",html.includes('id="groupProgress"')&&app.includes('data-step="1"')],
+ ["group-size validation",app.includes("Each group can have no more than 4 players")],
+ ["duplicate-name validation",app.includes("Player names must be unique")],
+ ["round complete detection",app.includes("Round complete.")],
+ ["sync status handling",html.includes('id="syncStatus"')&&app.includes("setSyncStatus")],
+ ["offline fallback indicator",app.includes('Offline · scoring locally')],
+ ["new outing resets wagers",app.includes('state.games={nassau:{enabled:false,wager:5,presses:[]}')],
+ ["scorecard completion status",app.includes("playerRoundStatus")],
+ ["six active tees",app.includes('"Gold/Blue Hybrid"')&&app.includes('"Blue/White Hybrid"')&&!app.includes('"White/Red Hybrid"')],
+ ["strokes-off helper",app.includes("strokesOffForGroup")]
+];
+let fail=false;for(const [n,ok]of checks){console.log(`${ok?"PASS":"FAIL"}: ${n}`);if(!ok)fail=true}if(fail)process.exit(1);
