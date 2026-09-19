@@ -320,6 +320,10 @@ function activePressesFor(group, segKey){
   return list.filter(p=>Number(p.group)===Number(group) && p.segment===segKey);
 }
 
+function latestPressFor(group, segKey){
+  return activePressesFor(group,segKey).sort((a,b)=>Number(b.fromHole)-Number(a.fromHole))[0] || null;
+}
+
 function pressOutcome(press){
   const seg=nassauSegments().find(s=>s.key===press.segment);
   if(!seg) return null;
@@ -334,11 +338,16 @@ function canPressNow(group){
   if(next===null) return {ok:false,reason:"This Nassau match is complete.",seg};
   if(state.hole!==next) return {ok:false,reason:`Presses can only start on the next unplayed hole, Hole ${next}.`,seg};
   if(state.hole===seg.holes[0]) return {ok:false,reason:`A press cannot start on the first hole of ${seg.name}.`,seg};
+  const latest=latestPressFor(group,seg.key);
+  const duplicate=activePressesFor(group,seg.key).some(p=>Number(p.fromHole)===state.hole);
+  if(duplicate) return {ok:false,reason:"A press has already been recorded from this hole.",seg};
+  if(latest){
+    const pressingSide=latest.pressedBy==="a"?"b":"a";
+    return {ok:true,seg,loser:pressingSide,type:"press-back",parent:latest,reason:"The opposing side may press the press on this next unplayed hole."};
+  }
   const standing=currentSegmentStanding(group,seg);
   if(!standing.loser) return {ok:false,reason:"A press is available only to the side currently losing the match.",seg,standing};
-  const duplicate=activePressesFor(group,seg.key).some(p=>Number(p.fromHole)===state.hole);
-  if(duplicate) return {ok:false,reason:"A press has already been recorded from this hole.",seg,standing};
-  return {ok:true,seg,standing,loser:standing.loser};
+  return {ok:true,seg,standing,loser:standing.loser,type:"press"};
 }
 
 function addPress(group){
@@ -350,7 +359,8 @@ function addPress(group){
   const teams=nassauTeamsForGroup(group,check.seg.pairing);
   const pressingTeam=check.loser==="a"?teams.a:teams.b;
   const label=teamName(pressingTeam);
-  if(!confirm(`${label} press from Hole ${state.hole} for $${wager}?`)) return;
+  const action=check.type==="press-back"?"press the press":"press";
+  if(!confirm(`${label} ${action} from Hole ${state.hole} for $${wager}?`)) return;
 
   state.games.nassau.presses ??=[];
   state.games.nassau.presses.push({
@@ -359,7 +369,9 @@ function addPress(group){
     segment:check.seg.key,
     fromHole:state.hole,
     pressedBy:check.loser,
-    amount:wager
+    amount:wager,
+    parentId:check.parent?.id || null,
+    type:check.type
   });
   renderPressCard();
   renderGames();
@@ -390,7 +402,7 @@ function renderPressCard(){
   host.innerHTML=`
     <div class="eyebrow">LIVE NASSAU · ${seg.name.toUpperCase()}</div>
     <div class="press-head"><div><h3>Press Bet</h3><p>${escapeHtml(check.reason || `${teamName(check.loser==="a"?teams.a:teams.b)} may press from Hole ${state.hole}.`)}</p></div>
-    <button id="pressNowBtn" class="primary" ${check.ok && state.organizerMode ? "" : "disabled"}>Press Now</button></div>
+    <button id="pressNowBtn" class="primary" ${check.ok && state.organizerMode ? "" : "disabled"}>${check.type==="press-back"?"Press the Press":"Press Now"}</button></div>
     <div class="press-meta"><span>Standing <b>${escapeHtml(standingText)}</b></span><span>Wager <b>$${Number(state.games.nassau.wager||0)}</b></span><span>Recorded <b>${presses.length}</b></span></div>
     ${presses.length?`<div class="press-list">${presses.map(p=>{
       const o=pressOutcome(p);
@@ -398,7 +410,7 @@ function renderPressCard(){
       if(o?.complete){
         status=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.a:o.b)} win`;
       }
-      return `<div class="press-row"><span>From Hole ${p.fromHole} · $${p.amount}</span><b>${escapeHtml(status)}</b>${state.organizerMode?`<button data-remove-press="${p.id}" class="ghost">×</button>`:""}</div>`;
+      return `<div class="press-row"><span>${p.type==="press-back"?"Press the Press · ":""}From Hole ${p.fromHole} · $${p.amount}</span><b>${escapeHtml(status)}</b>${state.organizerMode?`<button data-remove-press="${p.id}" class="ghost">×</button>`:""}</div>`;
     }).join("")}</div>`:""}
   `;
   $("#pressNowBtn")?.addEventListener("click",()=>addPress(g));

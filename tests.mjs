@@ -24,6 +24,7 @@ const checks=[
  ["rotating Nassau engine",app.includes("allNassauResults")&&app.includes("Holes 1–5")&&app.includes("Holes 16–18")&&app.includes("pairing:2")],
  ["explicit Nassau teams",app.includes("nassauTeamsForGroup")&&html.includes('id="nassauTeams"')],
  ["manual Nassau presses",app.includes("addPress")&&app.includes("Press Now")&&app.includes("pressOutcome")],
+ ["press the press",app.includes("Press the Press")&&app.includes('type:"press-back"')&&app.includes("parentId")],
  ["presses included in ledger",app.includes("for(const p of (state.games.nassau.presses||[]))")],
  ["organizer mode",html.includes('id="organizerMode"')&&app.includes("applyOrganizerMode")],
  ["40 Ball engine",app.includes("fortyBallResult")&&app.includes("slice(0,40)")],
