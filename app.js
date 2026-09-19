@@ -133,6 +133,8 @@ $("#resetBtn").onclick=()=>{
 };
 
 document.querySelectorAll(".group-tab").forEach(btn=>btn.onclick=()=>{
+  const joined=joinedPlayer();
+  if(joined && joined.group!==Number(btn.dataset.group)) return alert("You joined Foursome "+joined.group+". This shared scorecard is limited to your foursome.");
   state.group=Number(btn.dataset.group);
   renderScoring();
 });
@@ -246,8 +248,15 @@ function stablefordPoints(player,hole){
 
 function groupPlayers(g){ return state.players.filter(p=>p.group===g); }
 
-function nassauTeamsForGroup(group){
+function nassauTeamsForGroup(group,pairing=0){
   const ps=groupPlayers(group);
+  // Ballyhack's rotating-partner Nassau: 5-5-5-3.
+  // With a full foursome, partners rotate for each segment.
+  if(ps.length===4){
+    const orders=[[0,1,2,3],[0,2,1,3],[0,3,1,2]];
+    const o=orders[pairing]||orders[0];
+    return {a:[ps[o[0]],ps[o[1]]],b:[ps[o[2]],ps[o[3]]]};
+  }
   const saved=state.nassauTeams?.[group] || {};
   const a=[], b=[];
   ps.forEach((p,i)=>{
@@ -257,8 +266,8 @@ function nassauTeamsForGroup(group){
   return {a,b};
 }
 
-function nassauSegmentResult(group, holes){
-  const {a,b}=nassauTeamsForGroup(group);
+function nassauSegmentResult(group, holes, pairing=0){
+  const {a,b}=nassauTeamsForGroup(group,pairing);
   if(!a.length || !b.length) return {complete:false,label:"Assign Nassau teams"};
   let aWins=0,bWins=0,played=0;
   for(const h of holes){
@@ -279,18 +288,19 @@ function teamName(team){ return team.map(p=>p.name.split(" ")[0]).join(" / "); }
 
 function nassauSegments(){
   return [
-    {key:"front",name:"Front 9",holes:[1,2,3,4,5,6,7,8,9]},
-    {key:"back",name:"Back 9",holes:[10,11,12,13,14,15,16,17,18]},
-    {key:"overall",name:"Overall",holes:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]}
+    {key:"first5",name:"Holes 1–5",holes:[1,2,3,4,5],pairing:0},
+    {key:"second5",name:"Holes 6–10",holes:[6,7,8,9,10],pairing:1},
+    {key:"third5",name:"Holes 11–15",holes:[11,12,13,14,15],pairing:2},
+    {key:"last3",name:"Holes 16–18",holes:[16,17,18],pairing:0}
   ];
 }
 
 function currentNassauSegment(hole){
-  return hole<=9 ? nassauSegments()[0] : nassauSegments()[1];
+  return nassauSegments().find(seg=>seg.holes.includes(hole)) || nassauSegments()[0];
 }
 
 function currentSegmentStanding(group, seg){
-  const r=nassauSegmentResult(group, seg.holes.filter(h=>h<state.hole || (h===state.hole && groupPlayers(group).every(p=>Number(state.scores[`${p.id}-${h}`]||0)>0))));
+  const r=nassauSegmentResult(group, seg.holes.filter(h=>h<state.hole || (h===state.hole && groupPlayers(group).every(p=>Number(state.scores[`${p.id}-${h}`]||0)>0))),seg.pairing);
   if(!r.a || !r.b) return {margin:0,loser:null,...r};
   const margin=Math.abs(r.aWins-r.bWins);
   const loser=r.aWins===r.bWins?null:(r.aWins<r.bWins?"a":"b");
@@ -314,7 +324,7 @@ function pressOutcome(press){
   const seg=nassauSegments().find(s=>s.key===press.segment);
   if(!seg) return null;
   const holes=seg.holes.filter(h=>h>=Number(press.fromHole));
-  return nassauSegmentResult(Number(press.group),holes);
+  return nassauSegmentResult(Number(press.group),holes,seg.pairing);
 }
 
 function canPressNow(group){
@@ -337,7 +347,7 @@ function addPress(group){
   if(!check.ok) return alert(check.reason);
   const wager=Number(state.games?.nassau?.wager||0);
   if(!wager) return alert("Enter the Nassau wager first.");
-  const teams=nassauTeamsForGroup(group);
+  const teams=nassauTeamsForGroup(group,check.seg.pairing);
   const pressingTeam=check.loser==="a"?teams.a:teams.b;
   const label=teamName(pressingTeam);
   if(!confirm(`${label} press from Hole ${state.hole} for $${wager}?`)) return;
@@ -369,7 +379,7 @@ function renderPressCard(){
     host.classList.add("hidden"); host.innerHTML=""; return;
   }
   const g=state.group, seg=currentNassauSegment(state.hole), check=canPressNow(g);
-  const teams=nassauTeamsForGroup(g), presses=activePressesFor(g,seg.key);
+  const teams=nassauTeamsForGroup(g,seg.pairing), presses=activePressesFor(g,seg.key);
   const standing=currentSegmentStanding(g,seg);
   let standingText="All square";
   if(standing.loser){
@@ -399,7 +409,7 @@ function allNassauResults(){
   const segs=nassauSegments();
   const out=[];
   for(const g of [1,2]){
-    for(const seg of segs) out.push({group:g,seg,...nassauSegmentResult(g,seg.holes)});
+    for(const seg of segs) out.push({group:g,seg,...nassauSegmentResult(g,seg.holes,seg.pairing)});
   }
   return out;
 }
@@ -563,6 +573,29 @@ function setSyncStatus(text, kind=""){
   el.dataset.kind=kind;
 }
 
+function joinedPlayer(){
+  if(!state.outingId) return null;
+  const id=sessionStorage.getItem(`tngc-joined-${state.outingId}`);
+  return state.players.find(p=>p.id===id) || null;
+}
+
+function showJoinGame(){
+  if(!state.outingId || joinedPlayer()) return;
+  const overlay=document.createElement("div");
+  overlay.className="join-overlay";
+  overlay.innerHTML=`<section class="join-card"><div class="eyebrow">TNGC SCORING</div><h2>Join Game</h2><p>Select your name to enter scores for your foursome.</p><select id="joinPlayer"><option value="">Select your name</option>${state.players.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} · Foursome ${p.group}</option>`).join("")}</select><button id="joinGameBtn" class="primary">Join Game</button></section>`;
+  overlay.querySelector("#joinGameBtn").onclick=()=>{
+    const id=overlay.querySelector("#joinPlayer").value;
+    const player=state.players.find(p=>p.id===id);
+    if(!player) return alert("Select your name to join this game.");
+    sessionStorage.setItem(`tngc-joined-${state.outingId}`,id);
+    state.group=player.group;
+    overlay.remove();
+    renderScoring();
+  };
+  document.body.appendChild(overlay);
+}
+
 window.addEventListener("online",()=>{
   setSyncStatus(state.outingId ? "Back online · syncing" : "Online","ok");
   if(state.outingId){ state.cloudMode=true; pushCloudState(); }
@@ -673,6 +706,7 @@ async function loadCloudOuting(id){
     renderGames();
     renderScorecard();
     renderLedger();
+    showJoinGame();
     startPolling();
     return true;
   }catch(err){

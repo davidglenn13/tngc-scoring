@@ -36,6 +36,9 @@ button{border:0;border-radius:10px;padding:11px 14px;font-weight:800;cursor:poin
 .group-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
 .group-tab{background:#eeeae2;color:#444}
 .group-tab.active{background:var(--accent);color:white}
+.join-overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:rgba(10,18,24,.62)}
+.join-card{width:min(420px,100%);background:#fff;border-radius:18px;padding:24px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.join-card h2{margin:6px 0}.join-card p{color:var(--muted)}.join-card button{width:100%;margin-top:14px}
 .score-row{display:grid;grid-template-columns:1fr 110px;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #eee}
 .player-name{font-weight:800}
 .player-meta{font-size:12px;color:var(--muted);margin-top:3px}
