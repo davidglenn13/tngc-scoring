@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/core-regression.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "test:v2": "node scripts/preflight.mjs && node tests/v2-ci.mjs"
   }
 }
