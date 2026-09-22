@@ -6,10 +6,8 @@ pages_build_output_dir = "."
 TNGC_ENV = "beta"
 TNGC_DB_NAME = "tngc-scoring-v2-beta"
 
-# Safety: V2 beta must bind to its own D1 database.
-# Add this only after creating tngc-scoring-v2-beta in Cloudflare:
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "tngc-scoring-v2-beta"
-# database_id = "<V2_BETA_D1_DATABASE_ID>"
+# Safety: V2 beta binds only to its isolated V2 database.
+[[d1_databases]]
+binding = "DB"
+database_name = "tngc-scoring-v2-beta"
+database_id = "a3d6422a-7943-4f29-be6c-34434d4262a6"
