@@ -1,5 +1,17 @@
 # TNGC Scoring V2 — Rebuild Status
 
+## Current pickup checkpoint — September 22, 2026
+
+- Active branch: `v2-platform-rebuild`
+- Checkpoint commit: `9382969`
+- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta3`
+- Setup navigation: Details → Players → Games → Review
+- Mobile fix: step buttons are wired and the browser-compatible course module replaces the JSON import
+- Environment: isolated V2 beta project and isolated `tngc-scoring-v2-beta` D1 database
+- Database status at checkpoint: healthy and empty
+
+Continue only from this checkpoint. The September 19 checkout is archived and must not be used.
+
 This branch is isolated from main and the current TNGC beta.
 
 Current validated V2 checkpoint:
