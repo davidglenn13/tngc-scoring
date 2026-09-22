@@ -1,8 +1,8 @@
 {
-  "name": "tngc-scoring",
-  "version": "0.1.0",
+  "name": "tngc-v2",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "node tests.mjs"
+    "test": "node tests/core-regression.mjs"
   }
 }
