@@ -1,0 +1,17 @@
+{
+  "app": "TNGC Scoring V2",
+  "status": "pre-live-beta",
+  "course_version": "tngc-2026-validated",
+  "source_of_truth_games": "Ballyhack production",
+  "required_env": {
+    "DB": "Cloudflare D1 binding",
+    "TNGC_ENV": "beta or production",
+    "TNGC_DB_NAME": "must identify the bound D1 database"
+  },
+  "hard_rules": [
+    "beta and production must use different D1 databases",
+    "run migrations 0002 through 0008 in order",
+    "run node scripts/preflight.mjs before deploy",
+    "complete live two-phone acceptance testing before production"
+  ]
+}
