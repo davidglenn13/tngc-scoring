@@ -18,8 +18,16 @@ export async function onRequestPatch(context){
     if(!playerId)return bad("Missing player");
     if(!Number.isInteger(hole)||hole<1||hole>18)return bad("Invalid hole");
     if(gross!==null&&(!Number.isInteger(gross)||gross<1||gross>15))return bad("Gross score must be 1–15");
-    if(!await context.env.DB.prepare("SELECT id FROM v2_players WHERE id=? AND event_id=?").bind(playerId,eventId).first())
-      return bad("Player not in event",404);
+    const player=await context.env.DB.prepare(
+      "SELECT id,foursome_no FROM v2_players WHERE id=? AND event_id=?"
+    ).bind(playerId,eventId).first();
+    if(!player)return bad("Player not in event",404);
+
+    const card=await context.env.DB.prepare(
+      "SELECT status FROM v2_scorecard_confirmations WHERE event_id=? AND foursome_no=?"
+    ).bind(eventId,Number(player.foursome_no)).first();
+    if(card?.status==="confirmed")
+      return bad("Scorecard confirmed; organizer must unlock it for correction",423);
 
     const before=await cell(context.env,eventId,playerId,hole);
     if(gross===null&&!before&&expected===null)return json({player_id:playerId,hole,gross:null,revision:0});
