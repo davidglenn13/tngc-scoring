@@ -1,0 +1,14 @@
+{
+  "id": "tngc-charlotte",
+  "name": "Trump National Golf Club Charlotte",
+  "par": [4,5,3,4,4,4,3,5,4,4,4,5,3,4,3,5,4,4],
+  "strokeIndex": [8,6,14,12,4,2,16,18,10,1,7,15,9,5,17,11,13,3],
+  "tees": {
+    "Black": {"rating":75.7,"slope":146,"yards":7296},
+    "Gold": {"rating":73.8,"slope":142,"yards":6904},
+    "Gold/Blue Hybrid": {"rating":72.6,"slope":139,"yards":6637},
+    "Blue": {"rating":71.1,"slope":137,"yards":6325},
+    "Blue/White Hybrid": {"rating":70.0,"slope":127,"yards":6004},
+    "White": {"rating":68.2,"slope":120,"yards":5628}
+  }
+}
