@@ -1,4 +1,4 @@
-import course from './src/course-tngc.json' with {type:'json'};
+import course from './src/course-tngc.js';
 import {relativePlayingHandicaps} from './src/core/handicap.js';
 import {netScore,stablefordPoints} from './src/core/scoring.js';
 import {NASSAU_PRESETS,segmentResult,rotatingTeams,pressAvailability,pressResult,nassauGroupNet} from './src/core/games/nassau.js';
@@ -86,7 +86,18 @@ function bindBuilder(){
 }
 function renderBuilder(){$('#builderStep').innerHTML=stepHtml();$('#builderStepBadge').textContent=`${state.builderStep} of 4`;document.querySelectorAll('.step').forEach(b=>{const n=+b.dataset.step;b.classList.toggle('active',n===state.builderStep);b.classList.toggle('done',n<state.builderStep)});$('#backBtn').style.visibility=state.builderStep===1?'hidden':'visible';$('#nextBtn').textContent=state.builderStep===4?'Start Scoring':'Continue';bindBuilder();}
 function validate(){if(state.builderStep===1&&(!state.event.name.trim()||!state.event.date))return 'Complete the round details.';if(state.builderStep===2){if(state.players.length<2)return 'Add at least two players.';if(state.players.some(p=>!p.name.trim()||p.index===''))return 'Enter a name and index for every player.';const n=state.players.map(p=>p.name.trim().toLowerCase());if(new Set(n).size!==n.length)return 'Player names must be unique.';if(hasSecondFoursome()){const c=[1,2].map(g=>state.players.filter(p=>p.foursome===g).length);if(c.some(x=>x<1||x>4))return 'Use both foursomes with no more than four players in either.';}}if(state.builderStep===3&&state.games.nassau){for(const g of [1,2]){const ps=state.players.filter(p=>p.foursome===g);if(ps.length&&ps.length!==4)return 'Rotating Nassau requires four players in each participating foursome.';}}return '';}
-$('#backBtn').onclick=()=>{if(state.builderStep>1){state.builderStep--;renderBuilder();}};$('#nextBtn').onclick=()=>{const e=validate();if(e)return alert(e);if(state.builderStep<4){state.builderStep++;renderBuilder();}else startScoring();};
+function firstSetupError(){
+ const current=state.builderStep;
+ for(const step of [1,2,3]){state.builderStep=step;const error=validate();if(error){state.builderStep=current;return {step,error};}}
+ state.builderStep=current;return null;
+}
+document.querySelectorAll('.step').forEach(button=>button.onclick=()=>{state.builderStep=Number(button.dataset.step);renderBuilder();});
+$('#backBtn').onclick=()=>{if(state.builderStep>1){state.builderStep--;renderBuilder();}};
+$('#nextBtn').onclick=()=>{
+ if(state.builderStep<4){const error=validate();if(error)return alert(error);state.builderStep++;renderBuilder();return;}
+ const issue=firstSetupError();if(issue){state.builderStep=issue.step;renderBuilder();return alert(issue.error);}
+ startScoring();
+};
 
 const groupPlayers=g=>state.players.filter(p=>p.foursome===g);
 
