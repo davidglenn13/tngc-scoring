@@ -1,113 +1,47 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
-  <title>TNGC Scoring</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=915f83c" />
-  <style>.game-picker{display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:end;margin:12px 0}.game-picker .eyebrow{margin-bottom:5px}.scoring-head{display:flex;justify-content:space-between;gap:12px;align-items:start}.live-badge{display:inline-block;background:var(--red);color:#fff;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;letter-spacing:.06em}.score-player{border:1px solid var(--line);border-radius:12px;padding:12px;background:#f8fafc;display:grid;grid-template-columns:1fr 78px;gap:7px 10px;align-items:center;margin:8px 0}.score-player-name b{display:block;color:var(--navy)}.score-player-name span,.score-result{font-size:12px;color:var(--muted)}.score-result b{color:var(--good)}.score-player .score-input{grid-row:span 2;width:78px;text-align:center;font-size:26px;font-weight:900}@media(max-width:760px){.game-picker{grid-template-columns:1fr}.score-player{grid-template-columns:1fr 72px}.score-player .score-input{width:72px}}</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17365d">
+<title>TNGC Scoring V2</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="hero">
-    <div class="brand">
-      <div class="club-mark" aria-hidden="true">T</div>
-      <div>
-        <div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div>
-        <h1>TNGC Scoring</h1>
-        <div class="sub">Live Scoring · Lake Norman, North Carolina</div>
-      </div>
-    </div>
-    <div class="header-actions"><span id="syncStatus" class="pill">Local beta</span><button id="resetBtn" class="secondary">New Game</button></div>
-  </header>
+<header class="hero">
+  <div class="brand"><div><div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div><h1>TNGC Scoring</h1><p>Private outing scoring · V2 beta</p></div></div>
+  <span class="env-badge">V2 DEV</span>
+</header>
+<main class="shell">
+<section id="builderView" class="panel">
+  <div class="section-head"><div><div class="eyebrow">OUTING BUILDER</div><h2>Set up today’s round</h2><p>Fast setup for one or two foursomes.</p></div><span id="builderStepBadge" class="step-badge">1 of 4</span></div>
+  <div class="steps"><button class="step active" data-step="1">1<span>Round</span></button><button class="step" data-step="2">2<span>Players</span></button><button class="step" data-step="3">3<span>Games</span></button><button class="step" data-step="4">4<span>Review</span></button></div>
+  <div id="builderStep"></div>
+  <div class="builder-actions"><button id="backBtn" class="btn secondary" type="button">Back</button><button id="nextBtn" class="btn primary" type="button">Continue</button></div>
+</section>
 
-  <nav id="nav" class="hidden" aria-label="Game navigation">
-    <button data-view="scoreView" class="active">Live Scoring</button>
-    <button data-view="gamesView">Side Games</button>
-    <button data-view="ledgerView">The Ledger</button>
-    <button data-view="scorecardView">Gross Scorecard</button>
-  </nav>
+<section id="scoringView" class="hidden">
+  <div class="score-topbar"><div><div id="outingLabel" class="eyebrow">TNGC ROUND</div><h2>Live Scoring</h2></div><div class="score-actions"><span class="sync-badge">LOCAL V2</span><button id="commandBtn" class="btn secondary" type="button">Command Center</button></div></div>
+  <section class="panel scoring-panel">
+    <div id="foursomeSwitcher" class="segmented hidden"></div>
+    <section id="quickGameSetup" class="quick-game-setup"></section>
+    <div class="hole-nav"><button id="prevHole" class="hole-arrow" type="button">‹</button><div class="hole-center"><span>HOLE</span><strong id="holeNumber">1</strong><small id="holeMeta"></small></div><button id="nextHole" class="hole-arrow" type="button">›</button></div>
+    <div class="progress-wrap"><div class="progress-head"><span id="groupProgress"></span><span id="roundProgress"></span></div><div class="progress-track"><div id="progressFill"></div></div></div>
+    <div id="scoreRows"></div>
+    <div id="gameStrip" class="game-strip"></div>
+    <details class="round-scorecard"><summary>Round Scorecard</summary><div id="roundScorecard"></div></details>
+  </section>
+  <nav class="bottom-nav"><button class="active" data-pane="scorePane">Score</button><button data-pane="gamesPane">Games</button><button data-pane="ledgerPane">Ledger</button></nav>
+  <section id="scorePane"></section>
+  <section id="gamesPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">SIDE GAMES</div><h2>Live games</h2></div></div><div id="gamesContent"></div></section>
+  <section id="ledgerPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">THE LEDGER</div><h2>Who pays who</h2></div></div><div id="ledgerContent"></div></section>
+</section>
 
-  <main id="app" class="shell">
-    <section id="setupView" class="card">
-      <div class="section-heading">
-        <div>
-          <h2>Set Up Today’s Round</h2>
-          <p>Up to 8 players · mixed tees supported · one or two foursomes</p>
-        </div>
-        <span class="badge">BETA</span>
-      </div>
-
-      <div class="field-grid">
-        <label>Outing name
-          <input id="outingName" value="TNGC Round" />
-        </label>
-        <label>Date
-          <input id="outingDate" type="date" />
-        </label>
-      </div>
-      <label class="organizer-toggle"><span><b>Organizer Mode</b><small>Allows setup, tee, group, team, and wager changes on this device.</small></span><input id="organizerMode" type="checkbox" checked></label>
-
-      <h3>Players</h3>
-      <div id="players"></div>
-      <div class="actions">
-        <button id="addPlayerBtn" class="secondary">+ Add Player</button>
-        <button id="startRoundBtn" class="primary">Start Scoring</button>
-      </div>
-      <p class="fineprint">Starting a new outing clears the active round on this device. TNGC men’s tee ratings, par, and stroke indexes are loaded from the current validated course data.</p>
-    </section>
-
-    <section id="scoreView" class="card scoring-card hidden">
-      <div class="scoring-head">
-        <div><div class="eyebrow" id="roundLabel">PRIMARY SCORING WORKFLOW</div><h2>Enter Scores</h2></div>
-        <div><span class="live-badge">LIVE SCORING</span> <button id="editSetupBtn" class="ghost">Edit Setup</button></div>
-      </div>
-
-      <div class="hole-nav">
-        <button id="prevHole" class="circle">‹</button>
-        <div class="hole-center">
-          <span class="eyebrow">HOLE</span>
-          <strong id="holeNumber">1</strong>
-          <span id="holeMeta"></span>
-        </div>
-        <button id="nextHole" class="circle">›</button>
-      </div>
-
-      <div id="foursomeTabs" class="group-tabs">
-        <button class="group-tab active" data-group="1">Foursome 1</button>
-        <button class="group-tab" data-group="2">Foursome 2</button>
-      </div>
-
-      <div id="groupProgress" class="group-progress"></div>
-      <div id="scoreRows"></div>
-      <div id="summary" class="summary"></div>
-      <section id="pressCard" class="press-card hidden"></section>
-    </section>
-
-    <section id="gamesView" class="card hidden">
-      <div class="section-heading">
-        <div><div class="eyebrow">TODAY'S GAMES</div><h2>Games & Wagers</h2></div>
-      </div>
-      <div class="game-picker">
-        <div><div class="eyebrow">SIDE GAME FOR THIS ROUND</div><label>Game<select id="sideGame"><option value="none">None</option><option value="forty">40 Ball</option><option value="nassau555111">Nassau 5-5-5-3</option><option value="nassau666">Nassau 6-6-6</option></select></label></div>
-        <label>Wager ($)<input id="sideGameWager" type="number" min="0" max="999" step="1" value="5"></label>
-      </div>
-      <div id="nassauTeams" class="team-config"></div>
-      <div id="gameStatus" class="summary"></div>
-    </section>
-
-    <section id="scorecardView" class="card hidden">
-      <div class="section-heading"><div><div class="eyebrow">GROSS SCORES</div><h2>Scorecard</h2></div></div>
-      <div id="scorecardTable"></div>
-    </section>
-
-    <section id="ledgerView" class="card hidden">
-      <div class="section-heading"><div><div class="eyebrow">ALL SIDE BETS</div><h2>The Ledger</h2></div></div>
-      <div id="ledgerContent"></div>
-    </section>
-  </main>
-
-  <script src="app.js?v=915f83c"></script>
+<section id="commandView" class="panel hidden">
+  <div class="section-head"><div><div class="eyebrow">ORGANIZER</div><h2>Command Center</h2><p>Live health and scoring progress for the outing.</p></div><button id="closeCommandBtn" class="btn secondary" type="button">Back to Scoring</button></div>
+  <div id="commandContent"></div>
+</section>
+</main>
+<script type="module" src="app-v2.js"></script>
 </body>
 </html>
