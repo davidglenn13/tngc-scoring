@@ -1,9 +1,15 @@
-name = "tngc-scoring-beta"
-compatibility_date = "2026-09-19"
+name = "tngc-scoring-v2-beta"
+compatibility_date = "2026-09-22"
 pages_build_output_dir = "."
 
-# Add the D1 binding after creating the beta database:
+[vars]
+TNGC_ENV = "beta"
+TNGC_DB_NAME = "tngc-scoring-v2-beta"
+
+# Safety: V2 beta must bind to its own D1 database.
+# Add this only after creating tngc-scoring-v2-beta in Cloudflare:
+#
 # [[d1_databases]]
 # binding = "DB"
-# database_name = "tngc-scoring-beta"
-# database_id = "<CLOUDFLARE_D1_DATABASE_ID>"
+# database_name = "tngc-scoring-v2-beta"
+# database_id = "<V2_BETA_D1_DATABASE_ID>"
