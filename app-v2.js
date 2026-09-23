@@ -748,6 +748,18 @@ async function loadSharedEventFromUrl(){
    return true;
  }catch(err){console.warn(err);return false;}
 }
+async function checkEnvironment(){
+ const badge=document.querySelector(".env-badge");
+ try{
+   const health=await api.request("/health");
+   const healthy=health?.ok===true&&health?.environment==="beta"&&health?.expected_database==="tngc-scoring-v2-beta"&&health?.database_reachable===true;
+   if(badge){badge.textContent=healthy?"BETA":"BETA CHECK";badge.dataset.env=healthy?"beta":"unknown";}
+   if(!healthy)console.warn("Unexpected TNGC beta environment",health);
+ }catch(err){
+   if(badge){badge.textContent="BETA OFFLINE";badge.dataset.env="unknown";}
+   console.warn("Unable to verify TNGC beta environment",err);
+ }
+}
 checkEnvironment();
 loadSharedEventFromUrl().then(ok=>{
  if(!ok){for(let i=0;i<4;i++)addPlayer();renderBuilder();}

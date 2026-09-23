@@ -75,6 +75,7 @@ if(!html.includes("Step 1<span>Details</span>")||!html.includes("Step 4<span>Rev
 if(html.indexOf("top-game-nav")>html.indexOf("scoring-panel"))fail("Score Games Ledger navigation must be above scoring");
 if(!html.includes('data-pane="scorecardPane">Round Scorecard')||!app.includes("['scorePane','scorecardPane','gamesPane','ledgerPane']"))fail("top navigation pane switching");
 if(!html.includes("shareGameBtn")||!app.includes("function shareGame()"))fail("unique game share link");
+if(!app.includes("async function checkEnvironment()")||!app.includes('api.request("/health")'))fail("startup environment check");
 if(!app.includes("Choose a previous player")||!app.includes("SAVED_PLAYERS_KEY"))fail("saved player picker");
 if(!app.includes("Nassau Format(s)")||app.includes("trusted Ballyhack logic"))fail("Nassau setup copy");
 if(!app.includes("showJoinGate")||!app.includes("lockedViewer")||!app.includes("only show individual scores for your foursome"))fail("shared-link foursome privacy");
