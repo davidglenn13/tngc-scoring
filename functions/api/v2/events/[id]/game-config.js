@@ -10,6 +10,11 @@ async function existingForty(env,eventId){
     "SELECT * FROM v2_games WHERE event_id=? AND game_type='forty_ball' AND status='active' LIMIT 1"
   ).bind(eventId).first();
 }
+async function existingStableford(env,eventId){
+  return await env.DB.prepare(
+    "SELECT * FROM v2_games WHERE event_id=? AND game_type='stableford' AND status='active' LIMIT 1"
+  ).bind(eventId).first();
+}
 
 export async function onRequestPut(context){
   try{
@@ -21,7 +26,13 @@ export async function onRequestPut(context){
     const wager=Math.max(0,Math.round(Number(b.wager_cents||0)));
 
     if(mode==="forty_ball"){
-      if(g!==1)return bad("40 Ball must be selected from Foursome 1",409);
+      const target=Number(b.target_count)===30?30:40,per=target===30?3:4;
+      if(g!==1)return bad(`${target} Ball must be selected from Foursome 1`,409);
+      const rosterResult=await context.env.DB.prepare(
+        "SELECT foursome_no,COUNT(*) count FROM v2_players WHERE event_id=? GROUP BY foursome_no"
+      ).bind(eventId).all();
+      const roster=Object.fromEntries((rosterResult.results||[]).map(x=>[Number(x.foursome_no),Number(x.count)]));
+      if(roster[1]!==per||roster[2]!==per)return bad(`${target} Ball requires two groups of ${per}`,409);
       const current=await existingForty(context.env,eventId);
 
       // 40 Ball replaces Nassau for the outing, matching Ballyhack's round-wide rule.
@@ -31,21 +42,26 @@ export async function onRequestPut(context){
 
       if(current){
         await context.env.DB.prepare(
-          "UPDATE v2_games SET wager_cents=?,preset_key='manual-40-relative-to-par',config_json='{}' WHERE id=?"
-        ).bind(wager,current.id).run();
+          "UPDATE v2_games SET wager_cents=?,preset_key=?,config_json=? WHERE id=?"
+        ).bind(wager,`manual-${target}-relative-to-par`,JSON.stringify({target_count:target}),current.id).run();
       }else{
         await context.env.DB.prepare(
           `INSERT INTO v2_games(id,event_id,game_type,preset_key,foursome_no,wager_cents,config_json,status)
-           VALUES(?,?,'forty_ball','manual-40-relative-to-par',NULL,?,'{}','active')`
-        ).bind(newId("g_"),eventId,wager).run();
+           VALUES(?,?,'forty_ball',?,NULL,?,?, 'active')`
+        ).bind(newId("g_"),eventId,`manual-${target}-relative-to-par`,wager,JSON.stringify({target_count:target})).run();
       }
 
-      await audit(context.env,eventId,"games",eventId,"game_config_changed",{mode,wager_cents:wager});
-      return json({ok:true,mode:"forty_ball"});
+      await audit(context.env,eventId,"games",eventId,"game_config_changed",{mode,target_count:target,wager_cents:wager});
+      return json({ok:true,mode:"forty_ball",target_count:target});
     }
 
     if(mode==="nassau"){
       if(![1,2].includes(g))return bad("Invalid foursome");
+      if(wager<=0)return bad("Enter the Nassau wager",409);
+      const roster=await context.env.DB.prepare(
+        "SELECT COUNT(*) count FROM v2_players WHERE event_id=? AND foursome_no=?"
+      ).bind(eventId,g).first();
+      if(Number(roster?.count||0)!==4)return bad("Nassau requires four players in the participating foursome",409);
       const preset=String(b.preset_key||"5-5-5-1-1-1");
       if(!["5-5-5-1-1-1","6-6-6"].includes(preset))return bad("Invalid Nassau format");
 
@@ -80,12 +96,26 @@ export async function onRequestPut(context){
       return json({ok:true,mode:"nassau",foursome_no:g,preset_key:preset});
     }
 
+    if(mode==="stableford"){
+      const enabled=!!b.enabled,current=await existingStableford(context.env,eventId);
+      if(enabled&&!current){
+        await context.env.DB.prepare(
+          `INSERT INTO v2_games(id,event_id,game_type,preset_key,foursome_no,wager_cents,config_json,status)
+           VALUES(?,?,'stableford','net-stableford',NULL,0,'{}','active')`
+        ).bind(newId("g_"),eventId).run();
+      }else if(!enabled&&current){
+        await context.env.DB.prepare("DELETE FROM v2_games WHERE id=?").bind(current.id).run();
+      }
+      await audit(context.env,eventId,"games",eventId,"game_config_changed",{mode:"stableford",enabled});
+      return json({ok:true,mode:"stableford",enabled});
+    }
+
     if(mode==="none"){
       if(b.scope==="round"){
-        // Ballyhack hard reset behavior for None.
+        // Clear the round-wide Ball game while preserving optional Stableford.
         await context.env.DB.batch([
           context.env.DB.prepare("DELETE FROM v2_forty_ball_selections WHERE event_id=?").bind(eventId),
-          context.env.DB.prepare("DELETE FROM v2_games WHERE event_id=?").bind(eventId)
+          context.env.DB.prepare("DELETE FROM v2_games WHERE event_id=? AND game_type='forty_ball'").bind(eventId)
         ]);
       }else{
         if(![1,2].includes(g))return bad("Invalid foursome");

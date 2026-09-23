@@ -5,7 +5,14 @@ export async function onRequestPut(context){
     const eventId=cleanId(context.params.id); await requireEvent(context.env,eventId);
     const b=await context.request.json();
     const g=Number(b.foursome_no),playerId=String(b.player_id||""),hole=Number(b.hole),value=!!b.value;
-    if(![1,2].includes(g)||!playerId||!Number.isInteger(hole)||hole<1||hole>18) return bad("Invalid 40 Ball selection");
+    if(![1,2].includes(g)||!playerId||!Number.isInteger(hole)||hole<1||hole>18) return bad("Invalid Ball game selection");
+
+    const game=await context.env.DB.prepare(
+      "SELECT preset_key,config_json FROM v2_games WHERE event_id=? AND game_type='forty_ball' AND status='active' LIMIT 1"
+    ).bind(eventId).first();
+    if(!game)return bad("Ball game is not active",409);
+    let config={};try{config=JSON.parse(game.config_json||"{}");}catch{}
+    const target=Number(config.target_count||(/manual-30/.test(game.preset_key)?30:40))===30?30:40;
 
     const player=await context.env.DB.prepare(
       "SELECT id FROM v2_players WHERE id=? AND event_id=? AND foursome_no=?"
@@ -25,7 +32,7 @@ export async function onRequestPut(context){
         "SELECT selected FROM v2_forty_ball_selections WHERE event_id=? AND foursome_no=? AND player_id=? AND hole=?"
       ).bind(eventId,g,playerId,hole).first();
       if(existing?.selected)return json({ok:true,foursome_no:g,player_id:playerId,hole,value:true});
-      if(Number(countRow?.c||0)>=40) return bad("40 scores are already counted",409);
+      if(Number(countRow?.c||0)>=target) return bad(`${target} scores are already counted`,409);
       try{
         await context.env.DB.prepare(
           `INSERT INTO v2_forty_ball_selections(event_id,foursome_no,player_id,hole,selected,updated_at)
@@ -35,7 +42,7 @@ export async function onRequestPut(context){
         ).bind(eventId,g,playerId,hole).run();
       }catch(err){
         if(String(err?.message||err).includes("40 scores are already counted"))
-          return bad("40 scores are already counted",409);
+          return bad(`${target} scores are already counted`,409);
         throw err;
       }
     }else{
@@ -43,7 +50,7 @@ export async function onRequestPut(context){
         "DELETE FROM v2_forty_ball_selections WHERE event_id=? AND foursome_no=? AND player_id=? AND hole=?"
       ).bind(eventId,g,playerId,hole).run();
     }
-    await audit(context.env,eventId,"forty_ball",`${g}:${playerId}:${hole}`,"forty_ball_selection",{foursome_no:g,player_id:playerId,hole,value});
-    return json({ok:true,foursome_no:g,player_id:playerId,hole,value});
-  }catch(err){return bad(err.message||"Unable to save 40 Ball selection",err.status||400);}
+    await audit(context.env,eventId,"forty_ball",`${g}:${playerId}:${hole}`,"forty_ball_selection",{foursome_no:g,player_id:playerId,hole,value,target_count:target});
+    return json({ok:true,foursome_no:g,player_id:playerId,hole,value,target_count:target});
+  }catch(err){return bad(err.message||"Unable to save Ball game selection",err.status||400);}
 }

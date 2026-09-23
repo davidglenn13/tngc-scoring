@@ -19,6 +19,14 @@ export async function onRequestPut(context){
       return bad("Bulk game replacement is locked after scoring begins; use game-config",409);
     }
 
+    const rosterResult=await context.env.DB.prepare(
+      "SELECT foursome_no,COUNT(*) count FROM v2_players WHERE event_id=? GROUP BY foursome_no ORDER BY foursome_no"
+    ).bind(eventId).all();
+    const roster=Object.fromEntries((rosterResult.results||[]).map(x=>[Number(x.foursome_no),Number(x.count)]));
+    const hasBall=games.some(g=>String(g.game_type||"")==="forty_ball");
+    const hasNassau=games.some(g=>String(g.game_type||"")==="nassau");
+    if(hasBall&&hasNassau)return bad("Choose Nassau or a Ball game, not both",409);
+
     const deletes=context.env.DB.prepare("DELETE FROM v2_games WHERE event_id=?").bind(eventId);
     const inserts=games.map(g=>{
       const id=String(g.id||newId("g_"));
@@ -26,7 +34,15 @@ export async function onRequestPut(context){
       const preset=String(g.preset_key||"");
       const foursome=g.foursome_no==null?null:Number(g.foursome_no);
       const wager=Math.max(0,Math.round(Number(g.wager_cents||0)));
-      if(!["nassau","forty_ball"].includes(type)) throw new Error("Invalid game type");
+      if(!["nassau","forty_ball","stableford"].includes(type)) throw new Error("Invalid game type");
+      if(type==="nassau"){
+        if(wager<=0)throw new Error("Enter the Nassau wager");
+        if(![1,2].includes(foursome)||roster[foursome]!==4)throw new Error("Nassau requires four players in each participating foursome");
+      }
+      if(type==="forty_ball"){
+        const target=Number(g.config?.target_count)===30?30:40,per=target===30?3:4;
+        if(roster[1]!==per||roster[2]!==per)throw new Error(`${target} Ball requires two groups of ${per}`);
+      }
       return context.env.DB.prepare(
         `INSERT INTO v2_games(id,event_id,game_type,preset_key,foursome_no,wager_cents,config_json,status)
          VALUES(?,?,?,?,?,?,?,'active')`

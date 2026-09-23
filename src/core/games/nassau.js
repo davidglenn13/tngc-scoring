@@ -74,20 +74,14 @@ export function pressAvailability({segment,players,presses=[],getNet}){
 
   const counter=counterPress(presses,original);
   if(counter) return {kind:null,reason:"Press has already been pressed back",nextHole:next};
-
-  const active=pressResult({segment,players,press:original,getNet});
-  if(!active?.played || active.aWins===active.bWins)
-    return {kind:null,reason:"Active press is all square",nextHole:next};
-
-  const teamLosingPress=active.aWins<active.bWins?"a":"b";
   const opposite=original.pressedBy==="a"?"b":"a";
-  if(teamLosingPress!==opposite)
-    return {kind:null,reason:"Opposing team is not losing the active press",nextHole:next};
+  if(next<=Number(original.fromHole))
+    return {kind:null,reason:`Press the Press becomes available after Hole ${original.fromHole} is completed`,nextHole:next};
 
-  if(next<Number(original.fromHole))
-    return {kind:null,reason:"Counterpress cannot precede original press",nextHole:next};
-
-  return {kind:"counter",nextHole:next,pressedBy:opposite,parentPressId:original.id,standing:active};
+  // Ballyhack behavior: the opposing side may press the original press back on
+  // the next unplayed hole once the original press has started. It does not
+  // require that side to be losing the press at that moment.
+  return {kind:"counter",nextHole:next,pressedBy:opposite,parentPressId:original.id,standing:pressResult({segment,players,press:original,getNet})};
 }
 
 export function sanitizePresses({segment,presses=[],nextHole}){

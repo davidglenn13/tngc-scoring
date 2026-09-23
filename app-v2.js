@@ -12,7 +12,7 @@ const $=s=>document.querySelector(s);
 const api=new V2Api();
 const state={
  builderStep:1,event:{name:'TNGC Round',date:new Date().toISOString().slice(0,10)},
- players:[],games:{nassau:false,nassauPreset:'5-5-5-1-1-1',nassauWager:5,nassauByGroup:{1:{enabled:false,preset:'5-5-5-1-1-1',wager:5},2:{enabled:false,preset:'5-5-5-1-1-1',wager:5}},forty:false,fortyWager:5},
+ players:[],games:{nassau:false,nassauPreset:'5-5-5-1-1-1',nassauWager:'',nassauByGroup:{1:{enabled:false,preset:'5-5-5-1-1-1',wager:''},2:{enabled:false,preset:'5-5-5-1-1-1',wager:''}},stableford:false,forty:false,ballTarget:40,fortyWager:5},
  scores:{},scoreRevisions:{},currentHole:1,currentFoursome:1,visited18:false,
  eventId:null,cloudMode:true,lastSync:null,pollTimer:null,pendingScores:new Map(),auditEvents:[],commandBusy:false,fortySelections:{1:{},2:{}},presses:[],remoteGames:[],confirmations:{1:'in_progress',2:'in_progress'},scoreConflict:null,outbox:[],flushingOutbox:false,organizerToken:null,viewerFoursome:null,viewerPlayerId:null
 };
@@ -53,7 +53,8 @@ function addSavedPlayer(name){
 function savedPlayersHtml(){
  const active=new Set(state.players.map(p=>p.name.trim().toLowerCase()));
  const saved=loadSavedPlayers();if(!saved.length)return "";
- return `<section class="saved-player-menu"><div class="saved-player-head"><div><div class="eyebrow">SAVED GOLFERS</div><h3>Choose a previous player</h3></div><span>${saved.length} saved</span></div><div class="saved-player-list">${saved.map(p=>`<button type="button" data-saved-player="${esc(p.name)}" ${active.has(p.name.trim().toLowerCase())?"disabled":""}><span><b>${esc(p.name)}</b><small>HI ${Number(p.index).toFixed(1)} · ${esc(p.tee||"Blue")} tee</small></span><strong>${active.has(p.name.trim().toLowerCase())?"Added":"Add"}</strong></button>`).join("")}</div></section>`;
+ const full=state.players.length>=8;
+ return `<section class="saved-player-menu"><div class="saved-player-head"><div><div class="eyebrow">SAVED GOLFERS</div><h3>Choose a previous player</h3></div><span>${saved.length} saved</span></div><div class="saved-player-list">${saved.map(p=>{const added=active.has(p.name.trim().toLowerCase()),disabled=added||full;return `<button type="button" data-saved-player="${esc(p.name)}" ${disabled?"disabled":""}><span><b>${esc(p.name)}</b><small>HI ${Number(p.index).toFixed(1)} · ${esc(p.tee||"Blue")} tee</small></span><strong>${added?"Added":full?"Full":"Add"}</strong></button>`;}).join("")}</div></section>`;
 }
 
 function saveDeviceState(){
@@ -112,23 +113,30 @@ const hasSecondFoursome=()=>state.players.length>=5;
 function normalizeFoursomes(){if(!hasSecondFoursome())state.players.forEach(p=>p.foursome=1);}
 function addPlayer(){if(state.players.length>=8)return;const n=state.players.length;state.players.push({id:uid(),name:'',index:'',tee:'Blue',foursome:n<4?1:2});normalizeFoursomes();renderBuilder();}
 function removePlayer(id){state.players=state.players.filter(p=>p.id!==id);normalizeFoursomes();renderBuilder();}
-function playerRows(){normalizeFoursomes();const second=hasSecondFoursome();return state.players.map((p,i)=>`<div class="player-builder ${second?'':'single'}"><label>Name<input data-player="${p.id}" data-key="name" value="${esc(p.name)}" placeholder="Player ${i+1}"></label><label>Index<input data-player="${p.id}" data-key="index" type="number" step=".1" min="-10" max="54" value="${p.index}"></label><label>Tee<select data-player="${p.id}" data-key="tee">${Object.keys(course.tees).map(t=>`<option ${p.tee===t?'selected':''}>${t}</option>`).join('')}</select></label>${second?`<label>Foursome<select data-player="${p.id}" data-key="foursome"><option value="1" ${p.foursome===1?'selected':''}>1</option><option value="2" ${p.foursome===2?'selected':''}>2</option></select></label>`:''}<button type="button" class="remove-btn" data-remove="${p.id}">×</button></div>`).join('');}
+function groupSizes(){return [1,2].map(g=>state.players.filter(p=>p.foursome===g).length);}
+function ballRosterReady(target){const per=Number(target)===30?3:4;return state.players.length===per*2&&groupSizes().every(n=>n===per);}
+function assignBallGroups(target){const per=Number(target)===30?3:4;state.players.forEach((p,i)=>p.foursome=i<per?1:2);}
+function ballName(){return `${Number(state.games.ballTarget)===30?30:40} Ball`;}
+function playerRows(){normalizeFoursomes();const second=hasSecondFoursome();return state.players.map((p,i)=>`<div class="player-builder ${second?'':'single'}"><label class="player-field-name">Name<input data-player="${p.id}" data-key="name" value="${esc(p.name)}" placeholder="Player ${i+1}"></label><label class="player-field-index">Handicap Index<input data-player="${p.id}" data-key="index" type="number" inputmode="decimal" step=".1" min="-10" max="54" value="${p.index}"></label><label class="player-field-tee">Tee<select data-player="${p.id}" data-key="tee">${Object.keys(course.tees).map(t=>`<option ${p.tee===t?'selected':''}>${t}</option>`).join('')}</select></label>${second?`<label class="player-field-group">Foursome<select data-player="${p.id}" data-key="foursome"><option value="1" ${p.foursome===1?'selected':''}>1</option><option value="2" ${p.foursome===2?'selected':''}>2</option></select></label>`:''}<button type="button" class="remove-btn" data-remove="${p.id}" aria-label="Remove ${esc(p.name||`Player ${i+1}`)}">×</button></div>`).join('');}
 function stepHtml(){
  if(state.builderStep===1)return `<div class="field-grid"><label>Outing name<input id="eventName" value="${esc(state.event.name)}"></label><label>Date<input id="eventDate" type="date" value="${state.event.date}"></label></div><p class="muted">TNGC Charlotte course data is preloaded and validated.</p>`;
- if(state.builderStep===2)return `${savedPlayersHtml()}<div>${playerRows()}</div><div class="inline-actions"><span class="muted">${state.players.length}/8 players</span><button id="addPlayer" class="btn secondary" type="button">+ Add Player</button></div><p class="muted">${hasSecondFoursome()?'Assign up to four players to each foursome.':'With 2–4 players, everyone stays in Foursome 1 automatically.'}</p>`;
- if(state.builderStep===3)return `<div class="game-choice"><div><h3>Nassau Format(s)</h3><p>Choose the match format and wager for the foursome.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Nassau format<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Wager ($)<input id="nassauWager" type="number" min="0" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice"><div><h3>40 Ball</h3><p>Manually select exactly 40 net scores per foursome.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty?'checked':''}></div>${state.games.forty?`<label>Wager per player ($)<input id="fortyWager" type="number" min="0" value="${state.games.fortyWager}"></label>`:''}`;
- return `<div class="review-grid"><div class="review-card"><h3>Round</h3><p>${esc(state.event.name)}</p><p>${state.event.date}</p></div><div class="review-card"><h3>Players</h3><p>${state.players.length} golfers</p><p>${hasSecondFoursome()?'Two foursomes':'One foursome'}</p></div><div class="review-card"><h3>Games</h3><p>${state.games.nassau?`Nassau ${state.games.nassauPreset} · $${state.games.nassauWager}`:'No Nassau'}</p><p>${state.games.forty?`40 Ball · $${state.games.fortyWager}`:'No 40 Ball'}</p></div><div class="review-card"><h3>Ready</h3><p>Scores drive games, scorecards and Ledger automatically.</p></div></div>`;
+ if(state.builderStep===2){const full=state.players.length>=8;return `${savedPlayersHtml()}<div class="player-list">${playerRows()}</div><div class="inline-actions player-actions"><span class="muted"><b>${state.players.length}/8 players</b>${full?' · Maximum reached':''}</span><button id="addPlayer" class="btn ${full?'disabled-action':'secondary'}" type="button" ${full?'disabled aria-disabled="true"':''}>${full?'8 Player Maximum':'+ Add Player'}</button></div><p class="muted">${hasSecondFoursome()?'Assign players to Foursome 1 or Foursome 2.':'With 2–4 players, everyone stays in Foursome 1 automatically.'}</p>`;}
+ if(state.builderStep===3){const can30=state.players.length===6,can40=state.players.length===8;return `<div class="game-choice"><div><h3>Nassau Format(s)</h3><p>Four players per participating foursome. Gross and net scores determine each match.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Nassau format<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Nassau wager ($)<input id="nassauWager" type="number" inputmode="numeric" min="1" placeholder="Enter wager" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice ${can30?'':'unavailable'}"><div><h3>30 Ball</h3><p>Exactly 6 players · two groups of 3 · select 30 net scores per group.</p></div><input id="thirtyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)===30?'checked':''} ${can30?'':'disabled'}></div><div class="game-choice ${can40?'':'unavailable'}"><div><h3>40 Ball</h3><p>Exactly 8 players · two groups of 4 · select 40 net scores per group.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)!==30?'checked':''} ${can40?'':'disabled'}></div>${state.games.forty?`<label>${ballName()} wager per player ($)<input id="fortyWager" type="number" inputmode="numeric" min="0" value="${state.games.fortyWager}"></label>`:''}<div class="game-choice"><div><h3>Stableford</h3><p>Optional points game. Points appear only when Stableford is selected.</p></div><input id="stablefordToggle" type="checkbox" ${state.games.stableford?'checked':''}></div>`;}
+ return `<div class="review-grid"><div class="review-card"><h3>Round</h3><p>${esc(state.event.name)}</p><p>${state.event.date}</p></div><div class="review-card"><h3>Players</h3><p>${state.players.length} golfers</p><p>${hasSecondFoursome()?'Two foursomes':'One foursome'}</p></div><div class="review-card"><h3>Games</h3><p>${state.games.nassau?`Nassau ${state.games.nassauPreset} · $${state.games.nassauWager}`:'No Nassau'}</p><p>${state.games.forty?`${ballName()} · $${state.games.fortyWager}`:'No Ball game'}</p><p>${state.games.stableford?'Stableford selected':'No Stableford'}</p></div><div class="review-card"><h3>Ready</h3><p>Gross scores feed net scoring, selected games, the scorecard and Ledger.</p></div></div>`;
 }
 function bindBuilder(){
  $('#eventName')?.addEventListener('input',e=>state.event.name=e.target.value);$('#eventDate')?.addEventListener('change',e=>state.event.date=e.target.value);$('#addPlayer')?.addEventListener('click',addPlayer);
  document.querySelectorAll('[data-player]').forEach(el=>el.addEventListener('change',()=>{const p=state.players.find(x=>x.id===el.dataset.player);let v=el.value;if(el.dataset.key==='index')v=v===''?'':Number(v);if(el.dataset.key==='foursome')v=Number(v);p[el.dataset.key]=v;normalizeFoursomes();}));
  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePlayer(b.dataset.remove));
  document.querySelectorAll('[data-saved-player]').forEach(b=>b.onclick=()=>addSavedPlayer(b.dataset.savedPlayer));
- $('#nassauToggle')?.addEventListener('change',e=>{state.games.nassau=e.target.checked;if(e.target.checked)state.games.forty=false;renderBuilder();});$('#fortyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked)state.games.nassau=false;renderBuilder();});
- $('#nassauPreset')?.addEventListener('change',e=>state.games.nassauPreset=e.target.value);$('#nassauWager')?.addEventListener('change',e=>state.games.nassauWager=Math.max(0,Number(e.target.value||0)));$('#fortyWager')?.addEventListener('change',e=>state.games.fortyWager=Math.max(0,Number(e.target.value||0)));
+ $('#nassauToggle')?.addEventListener('change',e=>{state.games.nassau=e.target.checked;if(e.target.checked)state.games.forty=false;renderBuilder();});
+ $('#thirtyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=30;state.games.nassau=false;assignBallGroups(30);}renderBuilder();});
+ $('#fortyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=40;state.games.nassau=false;assignBallGroups(40);}renderBuilder();});
+ $('#stablefordToggle')?.addEventListener('change',e=>state.games.stableford=e.target.checked);
+ $('#nassauPreset')?.addEventListener('change',e=>state.games.nassauPreset=e.target.value);$('#nassauWager')?.addEventListener('input',e=>state.games.nassauWager=e.target.value===''?'':Math.max(0,Number(e.target.value)));$('#fortyWager')?.addEventListener('change',e=>state.games.fortyWager=Math.max(0,Number(e.target.value||0)));
 }
 function renderBuilder(){$('#builderStep').innerHTML=stepHtml();$('#builderStepBadge').textContent=`${state.builderStep} of 4`;document.querySelectorAll('.step').forEach(b=>{const n=+b.dataset.step;b.classList.toggle('active',n===state.builderStep);b.classList.toggle('done',n<state.builderStep)});$('#backBtn').style.visibility=state.builderStep===1?'hidden':'visible';$('#nextBtn').textContent=state.builderStep===4?'Start Scoring':'Continue';bindBuilder();}
-function validate(){if(state.builderStep===1&&(!state.event.name.trim()||!state.event.date))return 'Complete the round details.';if(state.builderStep===2){if(state.players.length<2)return 'Add at least two players.';if(state.players.some(p=>!p.name.trim()||p.index===''))return 'Enter a name and index for every player.';const n=state.players.map(p=>p.name.trim().toLowerCase());if(new Set(n).size!==n.length)return 'Player names must be unique.';if(hasSecondFoursome()){const c=[1,2].map(g=>state.players.filter(p=>p.foursome===g).length);if(c.some(x=>x<1||x>4))return 'Use both foursomes with no more than four players in either.';}}if(state.builderStep===3&&state.games.nassau){for(const g of [1,2]){const ps=state.players.filter(p=>p.foursome===g);if(ps.length&&ps.length!==4)return 'Rotating Nassau requires four players in each participating foursome.';}}return '';}
+function validate(){if(state.builderStep===1&&(!state.event.name.trim()||!state.event.date))return 'Complete the round details.';if(state.builderStep===2){if(state.players.length<2)return 'Add at least two players.';if(state.players.some(p=>!p.name.trim()||p.index===''))return 'Enter a name and index for every player.';const n=state.players.map(p=>p.name.trim().toLowerCase());if(new Set(n).size!==n.length)return 'Player names must be unique.';if(hasSecondFoursome()){const c=groupSizes();if(c.some(x=>x<1||x>4))return 'Use both foursomes with no more than four players in either.';}}if(state.builderStep===3){if(state.games.nassau){if(!(Number(state.games.nassauWager)>0))return 'Enter the Nassau wager before continuing.';for(const g of [1,2]){const ps=state.players.filter(p=>p.foursome===g);if(ps.length&&ps.length!==4)return 'Nassau requires four players in each participating foursome.';}}if(state.games.forty&&!ballRosterReady(state.games.ballTarget))return `${ballName()} requires exactly ${state.games.ballTarget===30?'6 players in two groups of 3':'8 players in two groups of 4'}.`; }return '';}
 function firstSetupError(){
  const current=state.builderStep;
  for(const step of [1,2,3]){state.builderStep=step;const error=validate();if(error){state.builderStep=current;return {step,error};}}
@@ -145,8 +153,8 @@ $('#nextBtn').onclick=()=>{
 const groupPlayers=g=>state.players.filter(p=>p.foursome===g);
 
 function nassauCfg(g){
- state.games.nassauByGroup??={1:{enabled:false,preset:"5-5-5-1-1-1",wager:5},2:{enabled:false,preset:"5-5-5-1-1-1",wager:5}};
- state.games.nassauByGroup[g]??={enabled:false,preset:"5-5-5-1-1-1",wager:5};
+ state.games.nassauByGroup??={1:{enabled:false,preset:"5-5-5-1-1-1",wager:""},2:{enabled:false,preset:"5-5-5-1-1-1",wager:""}};
+ state.games.nassauByGroup[g]??={enabled:false,preset:"5-5-5-1-1-1",wager:""};
  return state.games.nassauByGroup[g];
 }
 function syncLegacyGameFlags(){
@@ -195,7 +203,8 @@ function playerPayloads(){
 function gamePayloads(){
  const out=[];
  if(state.games.forty){
-   out.push({game_type:"forty_ball",preset_key:"manual-40-relative-to-par",foursome_no:null,wager_cents:Math.round(state.games.fortyWager*100),config:{}});
+   const target=Number(state.games.ballTarget)===30?30:40;
+   out.push({game_type:"forty_ball",preset_key:`manual-${target}-relative-to-par`,foursome_no:null,wager_cents:Math.round(state.games.fortyWager*100),config:{target_count:target}});
  }else{
    for(const g of [1,2]){
      const c=nassauCfg(g);
@@ -204,6 +213,7 @@ function gamePayloads(){
      }
    }
  }
+ if(state.games.stableford)out.push({game_type:"stableford",preset_key:"net-stableford",foursome_no:null,wager_cents:0,config:{}});
  return out;
 }
 function setCloudStatus(text,kind=""){
@@ -271,10 +281,11 @@ async function pullSnapshot(){
     const merged=mergeSnapshot({localScores:state.scores,localRevisions:state.scoreRevisions,remoteRows:snap.scores||[],activeKey,activeValue:localActive,protectedValues:protectedValuesFromOutbox(state.outbox)});
     state.scores=merged.scores;state.scoreRevisions=merged.revisions;
     state.remoteGames=snap.games||[];
-    state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:5},2:{enabled:false,preset:"5-5-5-1-1-1",wager:5}};
+    state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:""},2:{enabled:false,preset:"5-5-5-1-1-1",wager:""}};
     const fortyGame=(snap.games||[]).find(g=>g.game_type==="forty_ball");
     state.games.forty=!!fortyGame;
-    if(fortyGame)state.games.fortyWager=Number(fortyGame.wager_cents||0)/100;
+    state.games.stableford=(snap.games||[]).some(g=>g.game_type==="stableford");
+    if(fortyGame){state.games.fortyWager=Number(fortyGame.wager_cents||0)/100;state.games.ballTarget=Number(fortyGame.config?.target_count||(/manual-30/.test(fortyGame.preset_key)?30:40))===30?30:40;}
     for(const ng of (snap.games||[]).filter(g=>g.game_type==="nassau")){
       const gg=Number(ng.foursome_no);
       if([1,2].includes(gg))state.games.nassauByGroup[gg]={enabled:true,preset:ng.preset_key,wager:Number(ng.wager_cents||0)/100};
@@ -302,10 +313,12 @@ window.addEventListener("offline",()=>setCloudStatus("OFFLINE","warn"));
 
 
 function gameLabel(){
- if(state.games.forty)return "40 Ball";
+ const labels=[];
+ if(state.games.forty)labels.push(ballName());
  const c=nassauCfg(state.currentFoursome);
- if(c.enabled)return `Nassau ${c.preset}`;
- return "None";
+ if(c.enabled)labels.push(`Nassau ${c.preset}`);
+ if(state.games.stableford)labels.push("Stableford");
+ return labels.join(" + ")||"None";
 }
 function renderQuickGameSetup(){
  const host=$("#quickGameSetup");
@@ -322,7 +335,7 @@ function renderQuickGameSetup(){
 function renderQuickGameBody(){
  const body=$("#quickGameBody");if(!body)return;
  const g=state.currentFoursome,c=nassauCfg(g);
- const mode=state.games.forty?"forty":c.enabled?(c.preset==="6-6-6"?"nassau66":"nassau55"):"none";
+ const mode=state.games.forty?(Number(state.games.ballTarget)===30?"thirty":"forty"):c.enabled?(c.preset==="6-6-6"?"nassau66":"nassau55"):"none";
  const wager=state.games.forty?state.games.fortyWager:c.wager;
  body.innerHTML=`<div class="quick-game-grid">
    <label>Game
@@ -330,36 +343,42 @@ function renderQuickGameBody(){
        <option value="none" ${mode==="none"?"selected":""}>None</option>
        <option value="nassau55" ${mode==="nassau55"?"selected":""}>Nassau 5-5-5-1-1-1</option>
        <option value="nassau66" ${mode==="nassau66"?"selected":""}>Nassau 6-6-6</option>
-       <option value="forty" ${mode==="forty"?"selected":""} ${g===2?"disabled":""}>${g===2?"40 Ball — Foursome 1 Must Select":"40 Ball"}</option>
+       <option value="thirty" ${mode==="thirty"?"selected":""} ${g===2||!ballRosterReady(30)?"disabled":""}>30 Ball${g===2?" — Foursome 1 only":""}</option>
+       <option value="forty" ${mode==="forty"?"selected":""} ${g===2||!ballRosterReady(40)?"disabled":""}>40 Ball${g===2?" — Foursome 1 only":""}</option>
      </select>
    </label>
-   <label>Wager ($)<input id="quickGameWager" type="number" min="0" max="9999" step="1" value="${wager}"></label>
+   <label>Wager ($)<input id="quickGameWager" type="number" inputmode="numeric" min="${c.enabled?1:0}" max="9999" step="1" placeholder="Enter wager" value="${wager}"></label>
  </div>
+ <label class="quick-stableford"><input id="quickStableford" type="checkbox" ${state.games.stableford?"checked":""}> Show Stableford points as a selected game</label>
  <div class="quick-game-note">${state.games.forty
-   ?"40 Ball is round-wide. Both foursomes manually select exactly 40 counted net scores."
+   ?`${ballName()} is round-wide. Both groups manually select exactly ${state.games.ballTarget} counted net scores.`
    :c.enabled
    ?"Nassau is active only for this foursome. Wager applies to every base match and any elected press."
    :g===2
-   ?"Select Nassau for this foursome. 40 Ball must be selected from Foursome 1 because it applies to both foursomes."
-   :"Select a Nassau format for this foursome, or select round-wide 40 Ball."}</div>
+   ?"Select Nassau for this foursome. 30/40 Ball must be selected from Foursome 1 because it applies to both groups."
+   :"Select a Nassau format or an eligible round-wide Ball game. Stableford can be added separately."}</div>
  <button id="saveQuickGameBtn" class="btn primary" type="button">Save Game</button>`;
  $("#saveQuickGameBtn").onclick=async()=>{
-   const type=$("#quickGameSelect").value,wager=Math.max(0,Number($("#quickGameWager").value||0));
+   const type=$("#quickGameSelect").value,wagerRaw=$("#quickGameWager").value,wager=Math.max(0,Number(wagerRaw||0)),stableford=$("#quickStableford").checked;
    if(!state.eventId||!state.cloudMode)return alert("Game setup requires the shared cloud outing.");
+   if((type==="nassau55"||type==="nassau66")&&!(wager>0))return alert("Enter the Nassau wager before saving.");
    try{
-     if(type==="forty"){
-       if(g!==1)return alert("40 Ball must be selected from Foursome 1.");
-       await api.configureGame(state.eventId,{mode:"forty_ball",foursome_no:1,wager_cents:Math.round(wager*100)});
+     if(type==="forty"||type==="thirty"){
+       const target=type==="thirty"?30:40;
+       if(g!==1)return alert(`${target} Ball must be selected from Foursome 1.`);
+       if(!ballRosterReady(target))return alert(`${target} Ball requires ${target===30?'two groups of 3':'two groups of 4'}.`);
+       await api.configureGame(state.eventId,{mode:"forty_ball",target_count:target,foursome_no:1,wager_cents:Math.round(wager*100)});
      }else if(type==="nassau55"||type==="nassau66"){
        await api.configureGame(state.eventId,{mode:"nassau",foursome_no:g,preset_key:type==="nassau66"?"6-6-6":"5-5-5-1-1-1",wager_cents:Math.round(wager*100)});
      }else{
        if(state.games.forty){
-         if(g!==1)return alert("Round-wide 40 Ball can only be cleared from Foursome 1.");
+         if(g!==1)return alert(`Round-wide ${ballName()} can only be cleared from Foursome 1.`);
          await api.configureGame(state.eventId,{mode:"none",scope:"round",foursome_no:1});
        }else{
          await api.configureGame(state.eventId,{mode:"none",scope:"foursome",foursome_no:g});
        }
      }
+     await api.configureGame(state.eventId,{mode:"stableford",enabled:stableford,foursome_no:g});
      await pullSnapshot();
    }catch(err){
      alert("Game change was not saved: "+err.message);
@@ -387,9 +406,9 @@ function renderScoring(){
  $('#outingLabel').textContent=`${state.event.name} · ${state.event.date}`;const show2=hasSecondFoursome(),lockedViewer=!isOrganizer()&&!!state.viewerFoursome;if(lockedViewer)state.currentFoursome=state.viewerFoursome;$('#foursomeSwitcher').classList.toggle('hidden',!show2||lockedViewer);if(!show2)state.currentFoursome=1;
  if(show2&&!lockedViewer){$('#foursomeSwitcher').innerHTML=[1,2].map(g=>`<button data-foursome="${g}" class="${state.currentFoursome===g?'active':''}">Foursome ${g}</button>`).join('');document.querySelectorAll('[data-foursome]').forEach(b=>b.onclick=()=>{state.currentFoursome=+b.dataset.foursome;renderScoring();});}
  renderQuickGameSetup();
- const h=state.currentHole;$('#holeNumber').textContent=h;$('#holeMeta').textContent=`Par ${course.par[h-1]} · HCP ${course.strokeIndex[h-1]}`;$('#prevHole').disabled=h===1&&!state.visited18;
+ const h=state.currentHole;$('#holeNumber').textContent=h;$('#holeMeta').textContent=`Par ${course.par[h-1]} · HCP ${course.strokeIndex[h-1]}`;$('#prevHole').disabled=h===1&&!state.visited18;$('#prevHoleBottom').disabled=h===1&&!state.visited18;$('#holeProgressLabel').textContent=`Hole ${h} of 18`;
  const ps=groupPlayers(state.currentFoursome),rows=playingRows(state.currentFoursome);
- $('#scoreRows').innerHTML=ps.map(p=>{const info=rows.find(x=>x.id===p.id),gross=state.scores[key(p.id,h)]??'',net=gross!==''?netFor(p,h):null,pts=net!==null?stablefordPoints(net,course.par[h-1]):null;return `<div class="score-player"><div><b>${esc(p.name)}</b><small>${p.tee} · HI ${Number(p.index).toFixed(1)} · CH ${info.courseHandicap} · ${info.playingHandicap===0?'Plays off 0':`Playing Hcp ${info.playingHandicap}`}</small></div><input class="score-input" data-score-player="${p.id}" inputmode="numeric" type="number" min="1" max="15" value="${gross}" placeholder="—" ${state.confirmations[state.currentFoursome]==='confirmed'?'disabled':''}><div class="score-result">${gross!==''?`Net ${net} · <strong>${pts} pts</strong>`:`${info.playingHandicap===0?'No stroke':`${Math.max(0,info.playingHandicap)} playing hcp`} · enter gross`}</div>${state.games.forty?`<button type="button" class="forty-toggle ${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'selected':''}" data-forty-player="${p.id}" ${gross===''?'disabled':''}>${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'✓ Counted':'Count in 40 Ball'}</button>`:''}</div>`;}).join('');
+ $('#scoreRows').innerHTML=ps.map(p=>{const info=rows.find(x=>x.id===p.id),gross=state.scores[key(p.id,h)]??'',net=gross!==''?netFor(p,h):null,pts=state.games.stableford&&net!==null?stablefordPoints(net,course.par[h-1]):null;return `<div class="score-player"><div class="score-player-name"><b>${esc(p.name)}</b><small>${p.tee} · HI ${Number(p.index).toFixed(1)} · CH ${info.courseHandicap} · ${info.playingHandicap===0?'Plays off 0':`Playing Hcp ${info.playingHandicap}`}</small></div><label class="score-input-wrap"><span>Gross</span><input class="score-input" aria-label="${esc(p.name)} gross score for Hole ${h}" data-score-player="${p.id}" inputmode="numeric" type="number" min="1" max="15" value="${gross}" placeholder="—" ${state.confirmations[state.currentFoursome]==='confirmed'?'disabled':''}></label><div class="score-result">${gross!==''?`<span>Gross <strong>${gross}</strong></span><span>Net <strong>${net}</strong></span>${state.games.stableford?`<span>Stableford <strong>${pts} pts</strong></span>`:''}`:`<span>${info.playingHandicap===0?'No stroke':`${Math.max(0,info.playingHandicap)} playing hcp`} · enter gross</span>`}</div>${state.games.forty?`<button type="button" class="forty-toggle ${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'selected':''}" data-forty-player="${p.id}" ${gross===''?'disabled':''}>${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'✓ Counted':`Count in ${ballName()}`}</button>`:''}</div>`;}).join('');
  document.querySelectorAll('[data-score-player]').forEach(inp=>inp.oninput=()=>{let v=inp.value===''?'':Math.max(1,Math.min(15,Number(inp.value)));if(v!=='')inp.value=v;const h=state.currentHole,pid=inp.dataset.scorePlayer;state.scores[key(pid,h)]=v;if(v===''&&state.games.forty){const g=state.currentFoursome,k40=selectionKey(pid,h);if(fortySelectionsFor(g)[k40]){delete fortySelectionsFor(g)[k40];if(state.eventId&&state.cloudMode)api.setFortyBallSelection(state.eventId,{foursome_no:g,player_id:pid,hole:h,value:false}).catch(()=>{});}}pushScore(pid,h,v);renderScoring();});
  document.querySelectorAll('[data-forty-player]').forEach(b=>b.onclick=()=>toggleForty(b.dataset.fortyPlayer,state.currentHole));
  const holes=[...Array(18)].filter((_,i)=>ps.length&&ps.every(p=>Number(state.scores[key(p.id,i+1)]||0)>0)).length,entered=Object.values(state.scores).filter(v=>Number(v)>0).length,total=state.players.length*18;$('#groupProgress').textContent=`${show2?`Foursome ${state.currentFoursome} · `:''}${holes}/18 holes complete`;$('#roundProgress').textContent=`${entered}/${total} scores`;$('#progressFill').style.width=`${Math.round(holes/18*100)}%`;
@@ -406,8 +425,10 @@ function renderScoring(){
  renderGameStrip();renderFortyTracker();renderLiveNassau();renderScorecard();renderConfirmation();renderGames();renderLedger();
 }
 $('#shareGameBtn').onclick=shareGame;
-$('#prevHole').onclick=()=>{if(state.currentHole===1){if(state.visited18)state.currentHole=18;else return;}else state.currentHole--;renderScoring();};
-$('#nextHole').onclick=()=>{if(state.currentHole===18){state.visited18=true;state.currentHole=1;}else state.currentHole++;if(state.currentHole===18)state.visited18=true;renderScoring();};
+function previousHole(){if(state.currentHole===1){if(state.visited18)state.currentHole=18;else return;}else state.currentHole--;renderScoring();}
+function nextHole(){if(state.currentHole===18){state.visited18=true;state.currentHole=1;}else state.currentHole++;if(state.currentHole===18)state.visited18=true;renderScoring();}
+$('#prevHole').onclick=previousHole;$('#prevHoleBottom').onclick=previousHole;
+$('#nextHole').onclick=nextHole;$('#nextHoleBottom').onclick=nextHole;
 
 function currentNassauSegment(){const c=nassauCfg(state.currentFoursome);return c.enabled?(NASSAU_PRESETS[c.preset]||[]).find(s=>s.holes.includes(state.currentHole))||null:null;}
 function nassauGameForGroup(g){return (state.remoteGames||[]).find(x=>x.game_type==="nassau"&&Number(x.foursome_no)===g)||null;}
@@ -425,11 +446,16 @@ function renderLiveNassau(){
  const presses=pressesForGroup(g).filter(p=>p.segmentKey===seg.key),avail=pressAvailability({segment:seg,players:ps,presses,getNet:(p,h)=>netFor(p,h)});
  const pressTeam=avail.pressedBy?(avail.pressedBy==="a"?result.teams[0]:result.teams[1]):null;
  const action=avail.kind==="counter"?"Press the Press":avail.kind==="press"?"Press Now":seg.singleHole?"No Press":"Press Unavailable";
+ const original=presses.find(p=>!p.parentPressId)||null,counter=original?presses.find(p=>String(p.parentPressId||"")===String(original.id)):null;
+ const originalStanding=original?pressResult({segment:seg,players:ps,press:original,getNet:(p,h)=>netFor(p,h)}):null;
+ const pressStanding=!originalStanding?.played?"Not started":originalStanding.aWins===originalStanding.bWins?"All square":`${teamName(originalStanding.aWins>originalStanding.bWins?originalStanding.teams[0]:originalStanding.teams[1])} ${Math.abs(originalStanding.aWins-originalStanding.bWins)} up`;
+ let pressStatus=seg.singleHole?`${seg.label} is a standalone full-wager match. Presses are not available.`:avail.kind==="press"?`${teamName(pressTeam)} may press the base match on Hole ${avail.nextHole}.`:avail.kind==="counter"?`${teamName(pressTeam)} may Press the Press on Hole ${avail.nextHole}. This creates a separate $${cfg.wager} wager.`:counter?`Press the Press was recorded on Hole ${counter.fromHole}. Both press bets are active.`:avail.reason||"No press is available.";
  host.classList.remove("hidden");
- host.innerHTML=`<div class="eyebrow">LIVE NASSAU · ${esc(cfg.preset)}</div><div class="nassau-title"><div><h2>Press Bet</h2><p>Current match: <b>${esc(seg.label)}</b></p></div><div class="nassau-standing"><span>LIVE STANDING</span><strong>${esc(standing)}</strong></div></div>
- <div class="nassau-teams"><div><span>Side A</span><b>${esc(teamName(result.teams[0]))}</b></div><strong>VS</strong><div><span>Side B</span><b>${esc(teamName(result.teams[1]))}</b></div></div>
- <div class="nlp-grid"><button id="addLivePressBtn" type="button" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}${avail.nextHole?` · Hole ${avail.nextHole}`:""}</button><div class="nlp-side"><span>Pressing side</span><b>${pressTeam?esc(teamName(pressTeam)):"—"}</b></div><div class="nlp-side"><span>Wager</span><b>$${cfg.wager}</b></div><div class="nlp-side"><span>Press starts</span><b>${avail.kind?`Hole ${avail.nextHole}`:"—"}</b></div></div>
- <div class="nlp-foot">${seg.singleHole?`Standalone full-wager one-hole match · No press permitted`:`<b>${presses.length}</b> press${presses.length===1?"":"es"} recorded in this match${!avail.kind?` · ${esc(avail.reason||"")}`:""}`}</div>
+ host.innerHTML=`<div class="eyebrow">FOURSOME ${g} · LIVE NASSAU · ${esc(cfg.preset)}</div><div class="nassau-matchup-heading"><span>CURRENT MATCHUP · ${esc(seg.label)}</span><strong>$${cfg.wager} per base match and press</strong></div>
+ <div class="nassau-teams"><div><span>TEAM 1</span><b>${esc(teamName(result.teams[0]))}</b></div><strong>PLAYING</strong><div><span>TEAM 2</span><b>${esc(teamName(result.teams[1]))}</b></div></div>
+ <div class="nassau-title"><div><h2>Press Bet</h2><p>${esc(pressStatus)}</p></div><div class="nassau-standing"><span>BASE MATCH STANDING</span><strong>${esc(standing)}</strong></div></div>
+ <div class="nlp-grid"><button id="addLivePressBtn" type="button" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}${avail.nextHole?` · Hole ${avail.nextHole}`:""}</button><div class="nlp-side"><span>Pressing side</span><b>${pressTeam?esc(teamName(pressTeam)):"—"}</b></div><div class="nlp-side"><span>${original?"Original press standing":"Down by"}</span><b>${original?esc(pressStanding):result.loser?`${Math.abs(result.margin)} hole${Math.abs(result.margin)===1?"":"s"}`:"—"}</b></div><div class="nlp-side"><span>New bet starts</span><b>${avail.kind?`Hole ${avail.nextHole}`:"—"}</b></div></div>
+ <div class="nlp-foot">${seg.singleHole?`Standalone match value: $${cfg.wager} · No press permitted`:`<b>${presses.length}</b> press bet${presses.length===1?"":"s"} recorded · Each uses the $${cfg.wager} Nassau wager${original?` · Original press: Hole ${original.fromHole}`:""}${counter?` · Press the Press: Hole ${counter.fromHole}`:""}`}</div>
  ${presses.length?`<div class="press-history">${presses.map(pr=>{const o=pressResult({segment:seg,players:ps,press:pr,getNet:(p,h)=>netFor(p,h)});let st="Live";if(o?.complete)st=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.teams[0]:o.teams[1])} win`;return `<div><span><b>${pr.parentPressId?"Press the Press":"Press"}</b><small>Starts Hole ${pr.fromHole} · $${pr.amount}</small></span><strong>${esc(st)}</strong></div>`;}).join("")}</div>`:""}`;
  document.querySelector("#addLivePressBtn")?.addEventListener("click",()=>addLivePress(avail));
 }
@@ -455,7 +481,7 @@ async function unlockCard(g){
 }
 function renderConfirmation(){
  let host=document.querySelector("#confirmationCard");
- if(!host){host=document.createElement("section");host.id="confirmationCard";host.className="confirmation-card";document.querySelector("#roundScorecard").closest("details").insertAdjacentElement("beforebegin",host);}
+ if(!host){host=document.createElement("section");host.id="confirmationCard";host.className="confirmation-card";document.querySelector("#confirmationMount").appendChild(host);}
  const g=state.currentFoursome,status=state.confirmations[g]||"in_progress",complete=groupComplete(g);
  if(status==="confirmed"){
    host.innerHTML=`<div><span class="status-dot confirmed"></span><div><b>Scorecard confirmed</b><small>Foursome ${g} is locked. Organizer can unlock it for a correction.</small></div></div>`;
@@ -469,11 +495,12 @@ function renderConfirmation(){
 
 function renderGameStrip(){
  const out=[];
- if(state.games.forty)out.push(`<span class="game-pill">40 Ball · round-wide</span>`);
+ if(state.games.forty)out.push(`<span class="game-pill">${ballName()} · round-wide</span>`);
  else{
    const c=nassauCfg(state.currentFoursome);
    if(c.enabled)out.push(`<span class="game-pill live">Nassau ${c.preset} · $${c.wager}</span>`);
  }
+ if(state.games.stableford)out.push(`<span class="game-pill">Stableford points</span>`);
  if(!out.length)out.push(`<span class="game-pill">No side game for this foursome</span>`);
  $("#gameStrip").innerHTML=out.join("");
 }
@@ -482,18 +509,18 @@ function renderFortyTracker(){
  let host=document.querySelector("#fortyBallTracker");
  if(!host){host=document.createElement("section");host.id="fortyBallTracker";host.className="forty-ball-tracker";document.querySelector("#gameStrip").insertAdjacentElement("afterend",host);}
  if(!state.games.forty){host.classList.add("hidden");host.innerHTML="";return;}
- const summary=fortySummaryFor(state.currentFoursome);host.classList.remove("hidden");
- host.innerHTML=`<div><div class="eyebrow">40 BALL TRACKER · FOURSOME ${state.currentFoursome}</div><strong>${summary.count}/40</strong><span>scores counted</span></div><div><strong>${formatRelative(summary.relative)}</strong><span>relative to par</span></div><div><strong>${Math.max(0,40-summary.count)}</strong><span>still to select</span></div>`;
+ const target=Number(state.games.ballTarget)===30?30:40,summary=fortySummaryFor(state.currentFoursome);host.classList.remove("hidden");
+ host.innerHTML=`<div><div class="eyebrow">${target} BALL TRACKER · FOURSOME ${state.currentFoursome}</div><strong>${summary.count}/${target}</strong><span>scores counted</span></div><div><strong>${formatRelative(summary.relative)}</strong><span>relative to par</span></div><div><strong>${Math.max(0,target-summary.count)}</strong><span>still to select</span></div>`;
 }
 function renderScorecard(){const ps=groupPlayers(state.currentFoursome),holes=[...Array(18)].map((_,i)=>i+1);$('#roundScorecard').innerHTML=`<div class="scorecard-scroll"><table class="scorecard-table"><thead><tr><th>Player</th>${holes.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr></thead><tbody>${ps.map(p=>{const vals=holes.map(h=>Number(state.scores[key(p.id,h)]||0));return `<tr><th class="name">${esc(p.name.split(' ')[0])}</th>${vals.map(v=>`<td>${v||'—'}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)||'—'}</b></td></tr>`;}).join('')}</tbody></table></div>`;}
 function nassauResults(g){const ps=groupPlayers(g),c=nassauCfg(g);if(ps.length!==4||!c.enabled)return [];return (NASSAU_PRESETS[c.preset]||[]).map(seg=>({seg,r:segmentResult({segment:seg,players:ps,getNet:(p,h)=>netFor(p,h)})}));}
 
 function fortySelectionsFor(g){state.fortySelections[g]??={};return state.fortySelections[g];}
-function fortySummaryFor(g){return fortyBallSummary({players:groupPlayers(g),selections:fortySelectionsFor(g),getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1]});}
-function fortyMatch(){return fortyBallMatch({group1:groupPlayers(1),group2:groupPlayers(2),selections1:fortySelectionsFor(1),selections2:fortySelectionsFor(2),getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1]});}
+function fortySummaryFor(g){return fortyBallSummary({players:groupPlayers(g),selections:fortySelectionsFor(g),getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1],target:state.games.ballTarget});}
+function fortyMatch(){return fortyBallMatch({group1:groupPlayers(1),group2:groupPlayers(2),selections1:fortySelectionsFor(1),selections2:fortySelectionsFor(2),getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1],target:state.games.ballTarget});}
 async function toggleForty(pid,hole){
  const g=state.currentFoursome,map=fortySelectionsFor(g),k=selectionKey(pid,hole);
- const check=canSelectFortyBall({players:groupPlayers(g),selections:map,getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1],playerId:pid,hole});
+ const check=canSelectFortyBall({players:groupPlayers(g),selections:map,getNet:(p,h)=>netFor(p,h),getPar:h=>course.par[h-1],playerId:pid,hole,target:state.games.ballTarget});
  if(!check.ok)return alert(check.reason);
  const next=!map[k];if(next)map[k]=true;else delete map[k];renderScoring();
  if(state.eventId&&state.cloudMode){try{await api.setFortyBallSelection(state.eventId,{foursome_no:g,player_id:pid,hole,value:next});}catch(err){if(next)delete map[k];else map[k]=true;renderScoring();alert(err.message);}}
@@ -503,17 +530,19 @@ function pressesForGroup(g){return (state.presses||[]).filter(p=>Number(p.fourso
 function renderGames(){
  const blocks=[];
  if(state.games.forty){
+   const target=Number(state.games.ballTarget)===30?30:40;
    const a=fortySummaryFor(1),b=hasSecondFoursome()?fortySummaryFor(2):null;
    const leader=!b?"Waiting for the second foursome":a.relative===b.relative?"Tied":a.relative<b.relative?"Foursome 1 leads":"Foursome 2 leads";
-   const panel=(x,g)=>`<section class="side-result-panel"><h3>Foursome ${g}</h3><p>${groupPlayers(g).map(p=>esc(p.name.split(" ")[0])).join(" · ")}</p><div class="side-kpis"><div><strong>${formatRelative(x.relative)}</strong><span>Relative to par</span></div><div><strong>${x.count}/40</strong><span>Scores counted</span></div><div><strong>${Math.max(0,40-x.count)}</strong><span>Still to select</span></div></div><p class="notice">Only scores explicitly marked <b>Counted</b> on the Score screen are included.</p></section>`;
-   blocks.push(`<div class="forty-results"><div class="side-head"><div><div class="eyebrow">ROUND SIDE GAME</div><h2>40 Ball — Live Scoring</h2></div><div class="wager-chip">$${state.games.fortyWager} per player</div></div><div class="side-summary"><div><b>Live status</b><span>${leader}</span></div><div><b>Privacy</b><span>Each foursome sees only its own individual hole scores.</span></div></div>${panel(a,1)}${b?panel(b,2):""}<p class="muted">Lower selected net total relative to par wins.</p></div>`);
+   const panel=(x,g)=>`<section class="side-result-panel"><h3>Foursome ${g}</h3><p>${groupPlayers(g).map(p=>esc(p.name.split(" ")[0])).join(" · ")}</p><div class="side-kpis"><div><strong>${formatRelative(x.relative)}</strong><span>Relative to par</span></div><div><strong>${x.count}/${target}</strong><span>Scores counted</span></div><div><strong>${Math.max(0,target-x.count)}</strong><span>Still to select</span></div></div><p class="notice">Only scores explicitly marked <b>Counted</b> on Score Entry are included.</p></section>`;
+   blocks.push(`<div class="forty-results"><div class="side-head"><div><div class="eyebrow">ROUND SIDE GAME</div><h2>${target} Ball — Live Scoring</h2></div><div class="wager-chip">$${state.games.fortyWager} per player</div></div><div class="side-summary"><div><b>Live status</b><span>${leader}</span></div><div><b>Privacy</b><span>Each foursome sees only its own individual hole scores.</span></div></div>${panel(a,1)}${b?panel(b,2):""}<p class="muted">Lower selected net total relative to par wins.</p></div>`);
  }else{
    for(const g of [1,2]){
      const ps=groupPlayers(g),c=nassauCfg(g);if(!ps.length||!c.enabled)continue;
-     const rs=nassauResults(g);
-     blocks.push(`<div class="game-status"><h3>Foursome ${g} · Nassau ${c.preset}</h3><p>${rs.length?rs.map(x=>`${x.seg.label}: ${x.r.complete?(x.r.winner==='half'?'Halved':`${x.r.winner==='a'?'Side A':'Side B'} wins`):`${x.r.played}/${x.seg.holes.length} holes`}`).join(' · '):'Requires four players.'}</p><p>Wager $${c.wager} per match${c.preset==="5-5-5-1-1-1"?". Holes 16–18 are separate full-wager one-hole matches.":""}</p></div>`);
+     const rs=nassauResults(g),team=t=>t.map(p=>p.name.split(" ")[0]).join(" / ");
+     blocks.push(`<div class="game-status nassau-game-status"><h3>Foursome ${g} · Nassau ${c.preset}</h3><p class="nassau-game-wager">$${c.wager} per base match and press</p>${rs.length?rs.map(x=>`<div class="nassau-result-row"><span><b>${esc(x.seg.label)}</b><small>${esc(team(x.r.teams[0]))} vs ${esc(team(x.r.teams[1]))}</small></span><strong>${x.r.complete?(x.r.winner==='half'?'Halved':`${esc(team(x.r.winner==='a'?x.r.teams[0]:x.r.teams[1]))} win`):x.r.played?`${esc(x.r.aWins===x.r.bWins?'All square':`${team(x.r.aWins>x.r.bWins?x.r.teams[0]:x.r.teams[1])} ${Math.abs(x.r.margin)} up`)}`:'Not started'}</strong></div>`).join(''):'<p>Requires four players.</p>'}<p>${c.preset==="5-5-5-1-1-1"?"Holes 16–18 are separate full-wager one-hole matches.":"Three rotating six-hole matches."}</p></div>`);
    }
  }
+ if(state.games.stableford){const rows=state.players.map(p=>({p,points:[...Array(18)].reduce((sum,_,i)=>{const net=netFor(p,i+1);return sum+(net===null?0:stablefordPoints(net,course.par[i]));},0)})).sort((a,b)=>b.points-a.points);blocks.push(`<div class="game-status stableford-status"><div class="eyebrow">SELECTED GAME</div><h3>Stableford — Live Points</h3>${rows.map((x,i)=>`<div class="stableford-row"><span><b>${i+1}. ${esc(x.p.name)}</b><small>Net Stableford</small></span><strong>${x.points} pts</strong></div>`).join("")}</div>`);}
  $('#gamesContent').innerHTML=blocks.length?blocks.join(''):'<p class="muted">No side games selected.</p>';
 }
 function ledgerNet(){
@@ -533,7 +562,7 @@ function ledgerNet(){
 function renderLedger(){
  const net=ledgerNet();assertZeroSum(net);const pays=paymentsFromNet(net);
  $('#ledgerContent').innerHTML=`
- <div class="ledger-status"><span>LIVE</span><p>Nassau base matches, presses and 40 Ball results settle automatically from entered scores.</p></div>
+ <div class="ledger-status"><span>LIVE</span><p>Nassau base matches, presses and ${state.games.forty?ballName():"Ball game"} results settle automatically from entered scores. Stableford points are shown in Games and are not assumed for Nassau.</p></div>
  <div class="ledger-net">${state.players.map(p=>{const v=net[p.id]||0;return `<button type="button" class="ledger-player" data-chit-player="${p.id}"><span><b>${esc(p.name)}</b><small>${v>0?'RECEIVES':v<0?'OWES':'EVEN'} · tap for chit</small></span><strong class="${v>0?'positive':v<0?'negative':''}">${v>0?'+':''}$${Number(v).toFixed(0)}</strong></button>`;}).join('')}</div>
  <h3>Who Pays Who</h3>
  ${pays.length?pays.map(x=>{const f=state.players.find(p=>p.id===x.from)?.name,t=state.players.find(p=>p.id===x.to)?.name;return `<div class="payment-row"><span><b>${esc(f)}</b> pays <b>${esc(t)}</b></span><strong>$${x.amount.toFixed(0)}</strong></div>`;}).join(''):'<p class="muted">Completed side-game payments will appear here automatically.</p>'}`;
@@ -541,10 +570,7 @@ function renderLedger(){
 }
 document.querySelectorAll('.bottom-nav [data-pane]').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('.bottom-nav [data-pane]').forEach(x=>x.classList.toggle('active',x===b));
- const scoreSelected=b.dataset.pane==='scorePane';
- document.querySelector('.scoring-panel')?.classList.toggle('hidden',!scoreSelected);
- ['gamesPane','ledgerPane'].forEach(id=>$('#'+id).classList.add('hidden'));
- if(!scoreSelected)$('#'+b.dataset.pane).classList.remove('hidden');
+ ['scorePane','scorecardPane','gamesPane','ledgerPane'].forEach(id=>$('#'+id).classList.toggle('hidden',id!==b.dataset.pane));
 });
 
 function formatAudit(a){
@@ -595,7 +621,7 @@ async function restoreFromFile(file){
  let backup;
  try{backup=JSON.parse(await file.text());}catch{return alert("That backup file is not valid JSON.");}
  if(String(backup?.event?.id||"")!==String(state.eventId))return alert("This backup belongs to a different outing.");
- const phrase=prompt("Type RESTORE to replace scores, games, presses, and 40 Ball selections with this backup.");
+ const phrase=prompt("Type RESTORE to replace scores, games, presses, and Ball game selections with this backup.");
  if(phrase!=="RESTORE")return;
  try{
    await api.restore(state.eventId,backup);
@@ -630,7 +656,7 @@ function missingScoreRows(){
 function playerChit(playerId){
  const p=state.players.find(x=>x.id===playerId);if(!p)return "";const lines=[];
  if(!state.games.forty){const g=p.foursome,ps=groupPlayers(g),c=nassauCfg(g);if(ps.length===4&&c.enabled){const segments=NASSAU_PRESETS[c.preset]||[];for(const seg of segments){const o=segmentResult({segment:seg,players:ps,getNet:(pp,h)=>netFor(pp,h)});if(o.complete&&o.winner!=="half"){const w=o.winner==="a"?o.teams[0]:o.teams[1],l=o.winner==="a"?o.teams[1]:o.teams[0],amount=w.some(x=>x.id===playerId)?c.wager:l.some(x=>x.id===playerId)?-c.wager:0;if(amount)lines.push({order:Math.min(...seg.holes),kind:0,text:`Nassau · ${seg.label}`,amount});}}for(const pr of pressesForGroup(g)){const seg=segments.find(s=>s.key===pr.segmentKey);if(!seg||seg.singleHole)continue;const o=pressResult({segment:seg,players:ps,press:pr,getNet:(pp,h)=>netFor(pp,h)});if(o?.complete&&o.winner!=="half"){const w=o.winner==="a"?o.teams[0]:o.teams[1],l=o.winner==="a"?o.teams[1]:o.teams[0],amount=w.some(x=>x.id===playerId)?pr.amount:l.some(x=>x.id===playerId)?-pr.amount:0;if(amount)lines.push({order:Number(pr.fromHole),kind:pr.parentPressId?2:1,text:`${pr.parentPressId?'Press the Press':'Nassau Press'} · ${seg.label} · starts Hole ${pr.fromHole}`,amount});}}}}
- if(state.games.forty&&hasSecondFoursome()){const m=fortyMatch();if(m.complete&&m.winner)lines.push({order:19,kind:9,text:"40 Ball",amount:p.foursome===m.winner?state.games.fortyWager:-state.games.fortyWager});}
+ if(state.games.forty&&hasSecondFoursome()){const m=fortyMatch();if(m.complete&&m.winner)lines.push({order:19,kind:9,text:ballName(),amount:p.foursome===m.winner?state.games.fortyWager:-state.games.fortyWager});}
  lines.sort((a,b)=>a.order-b.order||a.kind-b.kind);const total=lines.reduce((s,x)=>s+x.amount,0);
  return `<div class="chit-card"><div class="chit-head"><div><div class="eyebrow">PLAYER CHIT</div><h3>${esc(p.name)}</h3></div><strong class="${total>0?"positive":total<0?"negative":""}">${total>0?"+":""}$${total.toFixed(0)}</strong></div>${lines.length?lines.map(x=>`<div class="chit-line"><span>${esc(x.text)}</span><b class="${x.amount>0?"positive":"negative"}">${x.amount>0?"+":""}$${x.amount.toFixed(0)}</b></div>`).join(""):`<p class="muted">No completed side-game transactions yet.</p>`}</div>`;
 }
@@ -695,10 +721,11 @@ async function loadSharedEventFromUrl(){
    if(!isOrganizer()&&priorViewer&&state.players.some(p=>p.id===priorViewer.playerId&&Number(p.foursome)===Number(priorViewer.foursome))){state.viewerPlayerId=priorViewer.playerId;state.viewerFoursome=Number(priorViewer.foursome);}
    const mapped=scoreMapFromSnapshot(snap);state.scores=mapped.scores;state.scoreRevisions=mapped.revisions;
     state.remoteGames=snap.games||[];
-    state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:5},2:{enabled:false,preset:"5-5-5-1-1-1",wager:5}};
+    state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:""},2:{enabled:false,preset:"5-5-5-1-1-1",wager:""}};
     const fortyGame=(snap.games||[]).find(g=>g.game_type==="forty_ball");
     state.games.forty=!!fortyGame;
-    if(fortyGame)state.games.fortyWager=Number(fortyGame.wager_cents||0)/100;
+    state.games.stableford=(snap.games||[]).some(g=>g.game_type==="stableford");
+    if(fortyGame){state.games.fortyWager=Number(fortyGame.wager_cents||0)/100;state.games.ballTarget=Number(fortyGame.config?.target_count||(/manual-30/.test(fortyGame.preset_key)?30:40))===30?30:40;}
     for(const ng of (snap.games||[]).filter(g=>g.game_type==="nassau")){
       const gg=Number(ng.foursome_no);
       if([1,2].includes(gg))state.games.nassauByGroup[gg]={enabled:true,preset:ng.preset_key,wager:Number(ng.wager_cents||0)/100};

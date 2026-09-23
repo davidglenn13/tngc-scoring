@@ -85,9 +85,9 @@ body{background:linear-gradient(180deg,#e9e7e0 0,#f5f4f0 240px);font-size:16px}
   .steps{grid-template-columns:repeat(2,1fr)}.step{min-height:58px}
   .saved-player-list{grid-template-columns:1fr}
   .score-topbar{align-items:flex-start}.score-actions{display:flex;max-width:190px}.score-actions .btn{padding:9px 10px;font-size:12px}
-  .top-game-nav{top:0}.scoring-panel{padding-top:12px}
+  .top-game-nav{top:0}.top-game-nav button{font-size:12px;line-height:1.15;min-height:54px;padding:8px 4px}.scoring-panel{padding-top:12px}
   .forty-ball-tracker{grid-template-columns:1fr 1fr}.forty-ball-tracker>div:first-child{grid-column:1/-1}
-  .nassau-title{display:grid}.nassau-standing{text-align:left}
+  .nassau-title{display:grid}.nassau-standing{text-align:left}.nassau-teams{grid-template-columns:1fr}.nassau-teams>strong{padding:2px}
   .nlp-grid{grid-template-columns:1fr 1fr}.nlp-grid .btn{grid-column:1/-1}
   .side-head,.side-summary{display:grid}.side-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.side-kpis>div{padding:8px 6px}.side-kpis strong{font-size:18px}
 }

@@ -23,17 +23,17 @@
 
 <section id="scoringView" class="hidden">
   <div class="score-topbar"><div><div id="outingLabel" class="eyebrow">TNGC ROUND</div><h2>Live Scoring</h2></div><div class="score-actions"><span class="sync-badge">LOCAL V2</span><button id="shareGameBtn" class="btn secondary" type="button">Share Game</button><button id="commandBtn" class="btn secondary" type="button">Command Center</button></div></div>
-  <nav class="bottom-nav top-game-nav" aria-label="Game screens"><button class="active" data-pane="scorePane">Score</button><button data-pane="gamesPane">Games</button><button data-pane="ledgerPane">Ledger</button></nav>
-  <section class="panel scoring-panel">
+  <nav class="bottom-nav top-game-nav" aria-label="Game screens"><button class="active" data-pane="scorePane">Score Entry</button><button data-pane="scorecardPane">Round Scorecard</button><button data-pane="gamesPane">Games</button><button data-pane="ledgerPane">Ledger</button></nav>
+  <section id="scorePane" class="panel scoring-panel pane">
     <div id="foursomeSwitcher" class="segmented hidden"></div>
     <section id="quickGameSetup" class="quick-game-setup"></section>
     <div class="hole-nav"><button id="prevHole" class="hole-arrow" type="button">‹</button><div class="hole-center"><span>HOLE</span><strong id="holeNumber">1</strong><small id="holeMeta"></small></div><button id="nextHole" class="hole-arrow" type="button">›</button></div>
     <div class="progress-wrap"><div class="progress-head"><span id="groupProgress"></span><span id="roundProgress"></span></div><div class="progress-track"><div id="progressFill"></div></div></div>
     <div id="scoreRows"></div>
+    <div class="hole-actions" aria-label="Hole navigation"><button id="prevHoleBottom" class="btn secondary" type="button">← Previous Hole</button><strong id="holeProgressLabel">Hole 1 of 18</strong><button id="nextHoleBottom" class="btn primary" type="button">Next Hole →</button></div>
     <div id="gameStrip" class="game-strip"></div>
-    <details class="round-scorecard"><summary>Round Scorecard</summary><div id="roundScorecard"></div></details>
   </section>
-  <section id="scorePane"></section>
+  <section id="scorecardPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">ROUND SCORECARD</div><h2>Gross scores</h2><p>Review the full card before confirming it.</p></div></div><div id="confirmationMount"></div><div id="roundScorecard"></div></section>
   <section id="gamesPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">SIDE GAMES</div><h2>Live games</h2></div></div><div id="gamesContent"></div></section>
   <section id="ledgerPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">THE LEDGER</div><h2>Who pays who</h2></div></div><div id="ledgerContent"></div></section>
 </section>
@@ -43,6 +43,6 @@
   <div id="commandContent"></div>
 </section>
 </main>
-<script type="module" src="app-v2.js?v=beta4"></script>
+<script type="module" src="app-v2.js?v=beta5"></script>
 </body>
 </html>

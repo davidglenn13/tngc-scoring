@@ -3,8 +3,8 @@
 ## Current pickup checkpoint — September 23, 2026
 
 - Active branch: `v2-platform-rebuild`
-- Release candidate: `beta4`
-- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta4`
+- Release candidate: `beta5`
+- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta5`
 - Deployment: GitHub Actions publishes this isolated branch after the V2 regression suite passes
 - Setup navigation: Details → Players → Games → Review
 - Mobile fix: step buttons are wired and the browser-compatible course module replaces the JSON import
@@ -18,6 +18,12 @@
 - Score / Games / Ledger tabs moved to the top and switch views
 - Unique game sharing plus guest join-by-name added
 - Shared-link guests are locked to their own foursome's individual scorecard
+- Mobile player cards and an inactive 8-player maximum state
+- 40 Ball limited to 8 players in two groups of 4; 30 Ball supports 6 players in two groups of 3
+- Nassau wager starts empty and is required before play
+- Gross and net scoring are explicit; Stableford is an independently selected game
+- Nassau matchup presentation and Press-the-Press behavior match the latest Ballyhack build
+- Large mobile previous/next-hole controls plus separate Score Entry and Round Scorecard tabs
 
 Continue only from this checkpoint. The September 19 checkout is archived and must not be used.
 
