@@ -1,14 +1,23 @@
 # TNGC Scoring V2 — Rebuild Status
 
-## Current pickup checkpoint — September 22, 2026
+## Current pickup checkpoint — September 23, 2026
 
 - Active branch: `v2-platform-rebuild`
-- Checkpoint commit: `9382969`
-- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta3`
+- Checkpoint commit: `d6ef727`
+- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta3` (previous live build)
+- Next beta source: `beta4` is complete on the branch and awaiting Cloudflare publication
 - Setup navigation: Details → Players → Games → Review
 - Mobile fix: step buttons are wired and the browser-compatible course module replaces the JSON import
 - Environment: isolated V2 beta project and isolated `tngc-scoring-v2-beta` D1 database
 - Database status at checkpoint: healthy and empty
+- Trump National Charlotte visual theme applied without fabricating a club logo
+- Setup boxes now read Step 1: Details through Step 4: Review
+- Saved-golfer menu added to Step 2 using device-local history
+- Nassau Format(s) copy, complete live match/press presentation, and Press the Press controls restored
+- 40 Ball live tracker/results and counted-score controls restored
+- Score / Games / Ledger tabs moved to the top and switch views
+- Unique game sharing plus guest join-by-name added
+- Shared-link guests are locked to their own foursome's individual scorecard
 
 Continue only from this checkpoint. The September 19 checkout is archived and must not be used.
 
@@ -31,9 +40,6 @@ Current validated V2 checkpoint:
 - Nassau eligibility requires exactly four golfers in that foursome
 - 40 Ball eligibility requires two complete foursomes of four
 - No fabricated TNGC logo asset
-
-Latest local artifact SHA-256:
-26a0b50f6c72d8c394d8d7469612a0aec1efe748e28af931d7751a6fa5b3feb9
 
 All current regression suites and release preflight pass.
 
