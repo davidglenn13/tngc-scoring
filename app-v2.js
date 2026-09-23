@@ -539,7 +539,13 @@ function renderLedger(){
  ${pays.length?pays.map(x=>{const f=state.players.find(p=>p.id===x.from)?.name,t=state.players.find(p=>p.id===x.to)?.name;return `<div class="payment-row"><span><b>${esc(f)}</b> pays <b>${esc(t)}</b></span><strong>$${x.amount.toFixed(0)}</strong></div>`;}).join(''):'<p class="muted">Completed side-game payments will appear here automatically.</p>'}`;
  document.querySelectorAll('[data-chit-player]').forEach(b=>b.onclick=()=>openChit(b.dataset.chitPlayer));
 }
-document.querySelectorAll('.bottom-nav [data-pane]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.bottom-nav [data-pane]').forEach(x=>x.classList.toggle('active',x===b));['gamesPane','ledgerPane'].forEach(id=>$('#'+id).classList.add('hidden'));if(b.dataset.pane!=='scorePane')$('#'+b.dataset.pane).classList.remove('hidden');});
+document.querySelectorAll('.bottom-nav [data-pane]').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.bottom-nav [data-pane]').forEach(x=>x.classList.toggle('active',x===b));
+ const scoreSelected=b.dataset.pane==='scorePane';
+ document.querySelector('.scoring-panel')?.classList.toggle('hidden',!scoreSelected);
+ ['gamesPane','ledgerPane'].forEach(id=>$('#'+id).classList.add('hidden'));
+ if(!scoreSelected)$('#'+b.dataset.pane).classList.remove('hidden');
+});
 
 function formatAudit(a){
   const p=a.payload||{};

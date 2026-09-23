@@ -66,6 +66,7 @@ if(!games.includes("Bulk game replacement is locked after scoring begins"))fail(
 if(!trigger.includes("trg_v2_40_limit_insert"))fail("40 Ball DB trigger");
 if(!html.includes("Step 1<span>Details</span>")||!html.includes("Step 4<span>Review</span>"))fail("explicit setup step labels");
 if(html.indexOf("top-game-nav")>html.indexOf("scoring-panel"))fail("Score Games Ledger navigation must be above scoring");
+if(!app.includes("classList.toggle('hidden',!scoreSelected)"))fail("top navigation pane switching");
 if(!html.includes("shareGameBtn")||!app.includes("function shareGame()"))fail("unique game share link");
 if(!app.includes("Choose a previous player")||!app.includes("SAVED_PLAYERS_KEY"))fail("saved player picker");
 if(!app.includes("Nassau Format(s)")||app.includes("trusted Ballyhack logic"))fail("Nassau setup copy");
