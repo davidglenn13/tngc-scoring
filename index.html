@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#17365d">
+<meta name="theme-color" content="#071b2f">
 <title>TNGC Scoring V2</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="tngc-theme.css">
 </head>
 <body>
 <header class="hero">
-  <div class="brand"><div><div class="eyebrow">TRUMP NATIONAL GOLF CLUB CHARLOTTE</div><h1>TNGC Scoring</h1><p>Private outing scoring · V2 beta</p></div></div>
-  <span class="env-badge">V2 DEV</span>
+  <div class="brand"><div><div class="eyebrow">TRUMP NATIONAL GOLF CLUB</div><h1>Charlotte</h1><p>Member game scoring · Beta</p></div></div>
+  <span class="env-badge">BETA</span>
 </header>
 <main class="shell">
 <section id="builderView" class="panel">
   <div class="section-head"><div><div class="eyebrow">OUTING BUILDER</div><h2>Set up today’s round</h2><p>Fast setup for one or two foursomes.</p></div><span id="builderStepBadge" class="step-badge">1 of 4</span></div>
-  <div class="steps"><button class="step active" data-step="1">1<span>Details</span></button><button class="step" data-step="2">2<span>Players</span></button><button class="step" data-step="3">3<span>Games</span></button><button class="step" data-step="4">4<span>Review</span></button></div>
+  <div class="steps"><button class="step active" data-step="1">Step 1<span>Details</span></button><button class="step" data-step="2">Step 2<span>Players</span></button><button class="step" data-step="3">Step 3<span>Games</span></button><button class="step" data-step="4">Step 4<span>Review</span></button></div>
   <div id="builderStep"></div>
   <div class="builder-actions"><button id="backBtn" class="btn secondary" type="button">Back</button><button id="nextBtn" class="btn primary" type="button">Continue</button></div>
 </section>
 
 <section id="scoringView" class="hidden">
-  <div class="score-topbar"><div><div id="outingLabel" class="eyebrow">TNGC ROUND</div><h2>Live Scoring</h2></div><div class="score-actions"><span class="sync-badge">LOCAL V2</span><button id="commandBtn" class="btn secondary" type="button">Command Center</button></div></div>
+  <div class="score-topbar"><div><div id="outingLabel" class="eyebrow">TNGC ROUND</div><h2>Live Scoring</h2></div><div class="score-actions"><span class="sync-badge">LOCAL V2</span><button id="shareGameBtn" class="btn secondary" type="button">Share Game</button><button id="commandBtn" class="btn secondary" type="button">Command Center</button></div></div>
+  <nav class="bottom-nav top-game-nav" aria-label="Game screens"><button class="active" data-pane="scorePane">Score</button><button data-pane="gamesPane">Games</button><button data-pane="ledgerPane">Ledger</button></nav>
   <section class="panel scoring-panel">
     <div id="foursomeSwitcher" class="segmented hidden"></div>
     <section id="quickGameSetup" class="quick-game-setup"></section>
@@ -31,7 +33,6 @@
     <div id="gameStrip" class="game-strip"></div>
     <details class="round-scorecard"><summary>Round Scorecard</summary><div id="roundScorecard"></div></details>
   </section>
-  <nav class="bottom-nav"><button class="active" data-pane="scorePane">Score</button><button data-pane="gamesPane">Games</button><button data-pane="ledgerPane">Ledger</button></nav>
   <section id="scorePane"></section>
   <section id="gamesPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">SIDE GAMES</div><h2>Live games</h2></div></div><div id="gamesContent"></div></section>
   <section id="ledgerPane" class="panel pane hidden"><div class="section-head"><div><div class="eyebrow">THE LEDGER</div><h2>Who pays who</h2></div></div><div id="ledgerContent"></div></section>
@@ -42,6 +43,6 @@
   <div id="commandContent"></div>
 </section>
 </main>
-<script type="module" src="app-v2.js?v=beta3"></script>
+<script type="module" src="app-v2.js?v=beta4"></script>
 </body>
 </html>

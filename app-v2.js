@@ -14,12 +14,13 @@ const state={
  builderStep:1,event:{name:'TNGC Round',date:new Date().toISOString().slice(0,10)},
  players:[],games:{nassau:false,nassauPreset:'5-5-5-1-1-1',nassauWager:5,nassauByGroup:{1:{enabled:false,preset:'5-5-5-1-1-1',wager:5},2:{enabled:false,preset:'5-5-5-1-1-1',wager:5}},forty:false,fortyWager:5},
  scores:{},scoreRevisions:{},currentHole:1,currentFoursome:1,visited18:false,
- eventId:null,cloudMode:true,lastSync:null,pollTimer:null,pendingScores:new Map(),auditEvents:[],commandBusy:false,fortySelections:{1:{},2:{}},presses:[],remoteGames:[],confirmations:{1:'in_progress',2:'in_progress'},scoreConflict:null,outbox:[],flushingOutbox:false,organizerToken:null
+ eventId:null,cloudMode:true,lastSync:null,pollTimer:null,pendingScores:new Map(),auditEvents:[],commandBusy:false,fortySelections:{1:{},2:{}},presses:[],remoteGames:[],confirmations:{1:'in_progress',2:'in_progress'},scoreConflict:null,outbox:[],flushingOutbox:false,organizerToken:null,viewerFoursome:null,viewerPlayerId:null
 };
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
 
 const LOCAL_KEY="tngc-v2-device";
+const SAVED_PLAYERS_KEY="tngc-v2-saved-players";
 
 const organizerKey=id=>`tngc-v2-organizer:${id}`;
 const outboxKey=id=>`tngc-v2-outbox:${id}`;
@@ -33,6 +34,26 @@ function loadOutbox(id){try{const x=JSON.parse(localStorage.getItem(outboxKey(id
 function saveOutbox(){if(!state.eventId)return;try{localStorage.setItem(outboxKey(state.eventId),JSON.stringify(state.outbox||[]));}catch{}}
 function deviceId(){
  const k="tngc-v2-device-id";try{let id=localStorage.getItem(k);if(!id){id=`d_${Math.random().toString(36).slice(2,10)}`;localStorage.setItem(k,id);}return id;}catch{return "shared-link";}
+}
+
+function loadSavedPlayers(){
+ try{const rows=JSON.parse(localStorage.getItem(SAVED_PLAYERS_KEY)||"[]");return Array.isArray(rows)?rows:[];}catch{return [];}
+}
+function rememberPlayers(){
+ const byName=new Map(loadSavedPlayers().map(p=>[String(p.name||"").trim().toLowerCase(),p]));
+ state.players.forEach(p=>{const name=p.name.trim();if(name)byName.set(name.toLowerCase(),{name,index:Number(p.index),tee:p.tee});});
+ try{localStorage.setItem(SAVED_PLAYERS_KEY,JSON.stringify([...byName.values()].sort((a,b)=>a.name.localeCompare(b.name)).slice(0,80)));}catch{}
+}
+function addSavedPlayer(name){
+ if(state.players.length>=8)return alert("This round already has 8 players.");
+ const saved=loadSavedPlayers().find(p=>p.name===name);if(!saved)return;
+ if(state.players.some(p=>p.name.trim().toLowerCase()===saved.name.trim().toLowerCase()))return;
+ const n=state.players.length;state.players.push({id:uid(),name:saved.name,index:Number(saved.index),tee:saved.tee||"Blue",foursome:n<4?1:2});normalizeFoursomes();renderBuilder();
+}
+function savedPlayersHtml(){
+ const active=new Set(state.players.map(p=>p.name.trim().toLowerCase()));
+ const saved=loadSavedPlayers();if(!saved.length)return "";
+ return `<section class="saved-player-menu"><div class="saved-player-head"><div><div class="eyebrow">SAVED GOLFERS</div><h3>Choose a previous player</h3></div><span>${saved.length} saved</span></div><div class="saved-player-list">${saved.map(p=>`<button type="button" data-saved-player="${esc(p.name)}" ${active.has(p.name.trim().toLowerCase())?"disabled":""}><span><b>${esc(p.name)}</b><small>HI ${Number(p.index).toFixed(1)} · ${esc(p.tee||"Blue")} tee</small></span><strong>${active.has(p.name.trim().toLowerCase())?"Added":"Add"}</strong></button>`).join("")}</div></section>`;
 }
 
 function saveDeviceState(){
@@ -57,6 +78,27 @@ function preferredResume(eventId){
   if(!d||String(d.eventId||"")!==String(eventId||""))return null;
   return d;
 }
+const viewerKey=id=>`tngc-v2-viewer:${id}`;
+function loadViewer(id){try{return JSON.parse(localStorage.getItem(viewerKey(id))||"null");}catch{return null;}}
+function saveViewer(id,player){
+ state.viewerPlayerId=player.id;state.viewerFoursome=Number(player.foursome);state.currentFoursome=state.viewerFoursome;
+ try{localStorage.setItem(viewerKey(id),JSON.stringify({playerId:player.id,foursome:Number(player.foursome)}));}catch{}
+}
+function showJoinGate(){
+ const old=document.querySelector("#joinGameModal");if(old)old.remove();
+ const host=document.createElement("div");host.id="joinGameModal";host.innerHTML=`<div class="modal-backdrop join-backdrop"><section class="modal-card join-card"><div class="eyebrow">JOIN THIS GAME</div><h2>${esc(state.event.name)}</h2><p>Select your name. This device will only show individual scores for your foursome.</p><div class="join-player-list">${state.players.map(p=>`<button type="button" data-join-player="${p.id}"><span><b>${esc(p.name)}</b><small>Foursome ${p.foursome}</small></span><strong>Join</strong></button>`).join("")}</div></section></div>`;
+ document.body.appendChild(host);
+ host.querySelectorAll("[data-join-player]").forEach(b=>b.onclick=()=>{const p=state.players.find(x=>x.id===b.dataset.joinPlayer);if(!p)return;saveViewer(state.eventId,p);host.remove();$("#scoringView").classList.remove("hidden");renderScoring();startPolling();setCloudStatus("CLOUD LIVE","ok");});
+}
+async function shareGame(){
+ if(!state.eventId)return alert("The game link will be available as soon as cloud setup finishes.");
+ const url=new URL(location.href);url.search="";url.searchParams.set("event",state.eventId);
+ const data={title:`${state.event.name} · TNGC Scoring`,text:"Join this TNGC game for live scoring.",url:url.toString()};
+ try{
+   if(navigator.share){await navigator.share(data);return;}
+   await navigator.clipboard.writeText(data.url);alert("Game link copied. Send it to the other players.");
+ }catch(err){if(err?.name!=="AbortError")prompt("Copy this game link:",data.url);}
+}
 function nextIncompleteHole(g){
   const ps=groupPlayers(g);
   if(!ps.length)return 1;
@@ -73,14 +115,15 @@ function removePlayer(id){state.players=state.players.filter(p=>p.id!==id);norma
 function playerRows(){normalizeFoursomes();const second=hasSecondFoursome();return state.players.map((p,i)=>`<div class="player-builder ${second?'':'single'}"><label>Name<input data-player="${p.id}" data-key="name" value="${esc(p.name)}" placeholder="Player ${i+1}"></label><label>Index<input data-player="${p.id}" data-key="index" type="number" step=".1" min="-10" max="54" value="${p.index}"></label><label>Tee<select data-player="${p.id}" data-key="tee">${Object.keys(course.tees).map(t=>`<option ${p.tee===t?'selected':''}>${t}</option>`).join('')}</select></label>${second?`<label>Foursome<select data-player="${p.id}" data-key="foursome"><option value="1" ${p.foursome===1?'selected':''}>1</option><option value="2" ${p.foursome===2?'selected':''}>2</option></select></label>`:''}<button type="button" class="remove-btn" data-remove="${p.id}">×</button></div>`).join('');}
 function stepHtml(){
  if(state.builderStep===1)return `<div class="field-grid"><label>Outing name<input id="eventName" value="${esc(state.event.name)}"></label><label>Date<input id="eventDate" type="date" value="${state.event.date}"></label></div><p class="muted">TNGC Charlotte course data is preloaded and validated.</p>`;
- if(state.builderStep===2)return `<div>${playerRows()}</div><div class="inline-actions"><span class="muted">${state.players.length}/8 players</span><button id="addPlayer" class="btn secondary" type="button">+ Add Player</button></div><p class="muted">${hasSecondFoursome()?'Assign up to four players to each foursome.':'With 2–4 players, everyone stays in Foursome 1 automatically.'}</p>`;
- if(state.builderStep===3)return `<div class="game-choice"><div><h3>Nassau</h3><p>Rotating partners with trusted Ballyhack logic.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Preset<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Wager ($)<input id="nassauWager" type="number" min="0" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice"><div><h3>40 Ball</h3><p>Manually select exactly 40 net scores per foursome.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty?'checked':''}></div>${state.games.forty?`<label>Wager per player ($)<input id="fortyWager" type="number" min="0" value="${state.games.fortyWager}"></label>`:''}`;
+ if(state.builderStep===2)return `${savedPlayersHtml()}<div>${playerRows()}</div><div class="inline-actions"><span class="muted">${state.players.length}/8 players</span><button id="addPlayer" class="btn secondary" type="button">+ Add Player</button></div><p class="muted">${hasSecondFoursome()?'Assign up to four players to each foursome.':'With 2–4 players, everyone stays in Foursome 1 automatically.'}</p>`;
+ if(state.builderStep===3)return `<div class="game-choice"><div><h3>Nassau Format(s)</h3><p>Choose the match format and wager for the foursome.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Nassau format<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Wager ($)<input id="nassauWager" type="number" min="0" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice"><div><h3>40 Ball</h3><p>Manually select exactly 40 net scores per foursome.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty?'checked':''}></div>${state.games.forty?`<label>Wager per player ($)<input id="fortyWager" type="number" min="0" value="${state.games.fortyWager}"></label>`:''}`;
  return `<div class="review-grid"><div class="review-card"><h3>Round</h3><p>${esc(state.event.name)}</p><p>${state.event.date}</p></div><div class="review-card"><h3>Players</h3><p>${state.players.length} golfers</p><p>${hasSecondFoursome()?'Two foursomes':'One foursome'}</p></div><div class="review-card"><h3>Games</h3><p>${state.games.nassau?`Nassau ${state.games.nassauPreset} · $${state.games.nassauWager}`:'No Nassau'}</p><p>${state.games.forty?`40 Ball · $${state.games.fortyWager}`:'No 40 Ball'}</p></div><div class="review-card"><h3>Ready</h3><p>Scores drive games, scorecards and Ledger automatically.</p></div></div>`;
 }
 function bindBuilder(){
  $('#eventName')?.addEventListener('input',e=>state.event.name=e.target.value);$('#eventDate')?.addEventListener('change',e=>state.event.date=e.target.value);$('#addPlayer')?.addEventListener('click',addPlayer);
  document.querySelectorAll('[data-player]').forEach(el=>el.addEventListener('change',()=>{const p=state.players.find(x=>x.id===el.dataset.player);let v=el.value;if(el.dataset.key==='index')v=v===''?'':Number(v);if(el.dataset.key==='foursome')v=Number(v);p[el.dataset.key]=v;normalizeFoursomes();}));
  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePlayer(b.dataset.remove));
+ document.querySelectorAll('[data-saved-player]').forEach(b=>b.onclick=()=>addSavedPlayer(b.dataset.savedPlayer));
  $('#nassauToggle')?.addEventListener('change',e=>{state.games.nassau=e.target.checked;if(e.target.checked)state.games.forty=false;renderBuilder();});$('#fortyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked)state.games.nassau=false;renderBuilder();});
  $('#nassauPreset')?.addEventListener('change',e=>state.games.nassauPreset=e.target.value);$('#nassauWager')?.addEventListener('change',e=>state.games.nassauWager=Math.max(0,Number(e.target.value||0)));$('#fortyWager')?.addEventListener('change',e=>state.games.fortyWager=Math.max(0,Number(e.target.value||0)));
 }
@@ -116,6 +159,7 @@ const playingRows=g=>relativePlayingHandicaps(groupPlayers(g),course.tees,72);
 const key=(pid,h)=>`${pid}-${h}`;
 function netFor(p,h){const info=playingRows(p.foursome).find(x=>x.id===p.id);return netScore(state.scores[key(p.id,h)]??'',info.playingHandicap,course.strokeIndex[h-1]);}
 async function startScoring(){
+ rememberPlayers();
  $('#builderView').classList.add('hidden');$('#commandView').classList.add('hidden');$('#scoringView').classList.remove('hidden');
  state.currentFoursome=1;state.currentHole=1;
  if(state.games.nassau && !nassauCfg(1).enabled && !nassauCfg(2).enabled){
@@ -340,8 +384,8 @@ function renderScoring(){
  saveDeviceState();
  const cmd=$('#commandBtn');if(cmd)cmd.classList.toggle('hidden',!isOrganizer());
  renderConflictBanner();
- $('#outingLabel').textContent=`${state.event.name} · ${state.event.date}`;const show2=hasSecondFoursome();$('#foursomeSwitcher').classList.toggle('hidden',!show2);if(!show2)state.currentFoursome=1;
- if(show2){$('#foursomeSwitcher').innerHTML=[1,2].map(g=>`<button data-foursome="${g}" class="${state.currentFoursome===g?'active':''}">Foursome ${g}</button>`).join('');document.querySelectorAll('[data-foursome]').forEach(b=>b.onclick=()=>{state.currentFoursome=+b.dataset.foursome;renderScoring();});}
+ $('#outingLabel').textContent=`${state.event.name} · ${state.event.date}`;const show2=hasSecondFoursome(),lockedViewer=!isOrganizer()&&!!state.viewerFoursome;if(lockedViewer)state.currentFoursome=state.viewerFoursome;$('#foursomeSwitcher').classList.toggle('hidden',!show2||lockedViewer);if(!show2)state.currentFoursome=1;
+ if(show2&&!lockedViewer){$('#foursomeSwitcher').innerHTML=[1,2].map(g=>`<button data-foursome="${g}" class="${state.currentFoursome===g?'active':''}">Foursome ${g}</button>`).join('');document.querySelectorAll('[data-foursome]').forEach(b=>b.onclick=()=>{state.currentFoursome=+b.dataset.foursome;renderScoring();});}
  renderQuickGameSetup();
  const h=state.currentHole;$('#holeNumber').textContent=h;$('#holeMeta').textContent=`Par ${course.par[h-1]} · HCP ${course.strokeIndex[h-1]}`;$('#prevHole').disabled=h===1&&!state.visited18;
  const ps=groupPlayers(state.currentFoursome),rows=playingRows(state.currentFoursome);
@@ -359,8 +403,9 @@ function renderScoring(){
  jump.disabled=holes===18;
  jump.onclick=()=>{state.currentHole=nextMissing;renderScoring();};
 
- renderGameStrip();renderLiveNassau();renderScorecard();renderConfirmation();renderGames();renderLedger();
+ renderGameStrip();renderFortyTracker();renderLiveNassau();renderScorecard();renderConfirmation();renderGames();renderLedger();
 }
+$('#shareGameBtn').onclick=shareGame;
 $('#prevHole').onclick=()=>{if(state.currentHole===1){if(state.visited18)state.currentHole=18;else return;}else state.currentHole--;renderScoring();};
 $('#nextHole').onclick=()=>{if(state.currentHole===18){state.visited18=true;state.currentHole=1;}else state.currentHole++;if(state.currentHole===18)state.visited18=true;renderScoring();};
 
@@ -378,12 +423,14 @@ function renderLiveNassau(){
  const teamName=t=>t.map(p=>p.name.split(" ")[0]).join(" / ");
  const standing=!result.played?"Not started":result.aWins===result.bWins?"All square":`${teamName(result.aWins>result.bWins?result.teams[0]:result.teams[1])} ${Math.abs(result.aWins-result.bWins)} up`;
  const presses=pressesForGroup(g).filter(p=>p.segmentKey===seg.key),avail=pressAvailability({segment:seg,players:ps,presses,getNet:(p,h)=>netFor(p,h)});
+ const pressTeam=avail.pressedBy?(avail.pressedBy==="a"?result.teams[0]:result.teams[1]):null;
+ const action=avail.kind==="counter"?"Press the Press":avail.kind==="press"?"Press Now":seg.singleHole?"No Press":"Press Unavailable";
  host.classList.remove("hidden");
- host.innerHTML=`<div class="eyebrow">LIVE NASSAU · ${esc(seg.label.toUpperCase())}</div>
- <div class="live-nassau-head"><div><h3>${esc(standing)}</h3><p>${teamName(result.teams[0])} vs ${teamName(result.teams[1])}</p></div>${avail.kind&&isOrganizer()?`<button id="addLivePressBtn" class="btn primary">${avail.kind==="counter"?"Press the Press":"Press"} · Hole ${avail.nextHole}</button>`:""}</div>
- <div class="nassau-kpis"><div><span>BASE WAGER</span><b>$${cfg.wager}</b></div><div><span>HOLES PLAYED</span><b>${result.played}/${result.total}</b></div><div><span>ACTIVE PRESSES</span><b>${presses.length}</b></div></div>
- ${presses.length?`<div class="press-history">${presses.map(pr=>{const o=pressResult({segment:seg,players:ps,press:pr,getNet:(p,h)=>netFor(p,h)});let st="Pending";if(o?.complete)st=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.teams[0]:o.teams[1])} win`;return `<div><span><b>${pr.parentPressId?"Press the Press":"Press"}</b><small>Starts Hole ${pr.fromHole} · $${pr.amount}</small></span><strong>${esc(st)}</strong></div>`;}).join("")}</div>`:""}
- ${seg.singleHole?`<p class="muted">Standalone full-wager one-hole match. Presses are not available.</p>`:avail.kind?"":`<p class="muted">${esc(avail.reason||"")}</p>`}`;
+ host.innerHTML=`<div class="eyebrow">LIVE NASSAU · ${esc(cfg.preset)}</div><div class="nassau-title"><div><h2>Press Bet</h2><p>Current match: <b>${esc(seg.label)}</b></p></div><div class="nassau-standing"><span>LIVE STANDING</span><strong>${esc(standing)}</strong></div></div>
+ <div class="nassau-teams"><div><span>Side A</span><b>${esc(teamName(result.teams[0]))}</b></div><strong>VS</strong><div><span>Side B</span><b>${esc(teamName(result.teams[1]))}</b></div></div>
+ <div class="nlp-grid"><button id="addLivePressBtn" type="button" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}${avail.nextHole?` · Hole ${avail.nextHole}`:""}</button><div class="nlp-side"><span>Pressing side</span><b>${pressTeam?esc(teamName(pressTeam)):"—"}</b></div><div class="nlp-side"><span>Wager</span><b>$${cfg.wager}</b></div><div class="nlp-side"><span>Press starts</span><b>${avail.kind?`Hole ${avail.nextHole}`:"—"}</b></div></div>
+ <div class="nlp-foot">${seg.singleHole?`Standalone full-wager one-hole match · No press permitted`:`<b>${presses.length}</b> press${presses.length===1?"":"es"} recorded in this match${!avail.kind?` · ${esc(avail.reason||"")}`:""}`}</div>
+ ${presses.length?`<div class="press-history">${presses.map(pr=>{const o=pressResult({segment:seg,players:ps,press:pr,getNet:(p,h)=>netFor(p,h)});let st="Live";if(o?.complete)st=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.teams[0]:o.teams[1])} win`;return `<div><span><b>${pr.parentPressId?"Press the Press":"Press"}</b><small>Starts Hole ${pr.fromHole} · $${pr.amount}</small></span><strong>${esc(st)}</strong></div>`;}).join("")}</div>`:""}`;
  document.querySelector("#addLivePressBtn")?.addEventListener("click",()=>addLivePress(avail));
 }
 
@@ -430,6 +477,14 @@ function renderGameStrip(){
  if(!out.length)out.push(`<span class="game-pill">No side game for this foursome</span>`);
  $("#gameStrip").innerHTML=out.join("");
 }
+function formatRelative(value){return value===0?"E":value>0?`+${value}`:`${value}`;}
+function renderFortyTracker(){
+ let host=document.querySelector("#fortyBallTracker");
+ if(!host){host=document.createElement("section");host.id="fortyBallTracker";host.className="forty-ball-tracker";document.querySelector("#gameStrip").insertAdjacentElement("afterend",host);}
+ if(!state.games.forty){host.classList.add("hidden");host.innerHTML="";return;}
+ const summary=fortySummaryFor(state.currentFoursome);host.classList.remove("hidden");
+ host.innerHTML=`<div><div class="eyebrow">40 BALL TRACKER · FOURSOME ${state.currentFoursome}</div><strong>${summary.count}/40</strong><span>scores counted</span></div><div><strong>${formatRelative(summary.relative)}</strong><span>relative to par</span></div><div><strong>${Math.max(0,40-summary.count)}</strong><span>still to select</span></div>`;
+}
 function renderScorecard(){const ps=groupPlayers(state.currentFoursome),holes=[...Array(18)].map((_,i)=>i+1);$('#roundScorecard').innerHTML=`<div class="scorecard-scroll"><table class="scorecard-table"><thead><tr><th>Player</th>${holes.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr></thead><tbody>${ps.map(p=>{const vals=holes.map(h=>Number(state.scores[key(p.id,h)]||0));return `<tr><th class="name">${esc(p.name.split(' ')[0])}</th>${vals.map(v=>`<td>${v||'—'}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)||'—'}</b></td></tr>`;}).join('')}</tbody></table></div>`;}
 function nassauResults(g){const ps=groupPlayers(g),c=nassauCfg(g);if(ps.length!==4||!c.enabled)return [];return (NASSAU_PRESETS[c.preset]||[]).map(seg=>({seg,r:segmentResult({segment:seg,players:ps,getNet:(p,h)=>netFor(p,h)})}));}
 
@@ -448,8 +503,10 @@ function pressesForGroup(g){return (state.presses||[]).filter(p=>Number(p.fourso
 function renderGames(){
  const blocks=[];
  if(state.games.forty){
-   const a=fortySummaryFor(1),b=hasSecondFoursome()?fortySummaryFor(2):null,fmt=x=>x===0?'E':x>0?`+${x}`:`${x}`;
-   blocks.push(`<div class="game-status"><h3>40 Ball</h3><p>Foursome 1: <b>${fmt(a.relative)}</b> · ${a.count}/40 counted${b?` · Foursome 2: <b>${fmt(b.relative)}</b> · ${b.count}/40 counted`:''}</p><p>Exactly 40 scores are selected manually. Lower selected net total relative to par wins. Wager $${state.games.fortyWager} per player.</p></div>`);
+   const a=fortySummaryFor(1),b=hasSecondFoursome()?fortySummaryFor(2):null;
+   const leader=!b?"Waiting for the second foursome":a.relative===b.relative?"Tied":a.relative<b.relative?"Foursome 1 leads":"Foursome 2 leads";
+   const panel=(x,g)=>`<section class="side-result-panel"><h3>Foursome ${g}</h3><p>${groupPlayers(g).map(p=>esc(p.name.split(" ")[0])).join(" · ")}</p><div class="side-kpis"><div><strong>${formatRelative(x.relative)}</strong><span>Relative to par</span></div><div><strong>${x.count}/40</strong><span>Scores counted</span></div><div><strong>${Math.max(0,40-x.count)}</strong><span>Still to select</span></div></div><p class="notice">Only scores explicitly marked <b>Counted</b> on the Score screen are included.</p></section>`;
+   blocks.push(`<div class="forty-results"><div class="side-head"><div><div class="eyebrow">ROUND SIDE GAME</div><h2>40 Ball — Live Scoring</h2></div><div class="wager-chip">$${state.games.fortyWager} per player</div></div><div class="side-summary"><div><b>Live status</b><span>${leader}</span></div><div><b>Privacy</b><span>Each foursome sees only its own individual hole scores.</span></div></div>${panel(a,1)}${b?panel(b,2):""}<p class="muted">Lower selected net total relative to par wins.</p></div>`);
  }else{
    for(const g of [1,2]){
      const ps=groupPlayers(g),c=nassauCfg(g);if(!ps.length||!c.enabled)continue;
@@ -628,6 +685,8 @@ async function loadSharedEventFromUrl(){
    state.players=(snap.players||[]).map(p=>({
      id:p.id,name:p.display_name,index:Number(p.handicap_index),tee:p.tee_key,foursome:Number(p.foursome_no)
    }));
+   const priorViewer=loadViewer(eventId);
+   if(!isOrganizer()&&priorViewer&&state.players.some(p=>p.id===priorViewer.playerId&&Number(p.foursome)===Number(priorViewer.foursome))){state.viewerPlayerId=priorViewer.playerId;state.viewerFoursome=Number(priorViewer.foursome);}
    const mapped=scoreMapFromSnapshot(snap);state.scores=mapped.scores;state.scoreRevisions=mapped.revisions;
     state.remoteGames=snap.games||[];
     state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:5},2:{enabled:false,preset:"5-5-5-1-1-1",wager:5}};
@@ -645,7 +704,9 @@ async function loadSharedEventFromUrl(){
     for(const x of snap.forty_ball_selections||[]){state.fortySelections[Number(x.foursome_no)]??={};state.fortySelections[Number(x.foursome_no)][selectionKey(x.player_id,Number(x.hole))]=true;}
     state.confirmations={1:'in_progress',2:'in_progress'};for(const c of snap.confirmations||[])state.confirmations[Number(c.foursome_no)]=c.status;
    syncLegacyGameFlags();
-   $("#builderView").classList.add("hidden");$("#scoringView").classList.remove("hidden");
+   $("#builderView").classList.add("hidden");
+   if(!isOrganizer()&&!state.viewerFoursome){$("#scoringView").classList.add("hidden");showJoinGate();return true;}
+   $("#scoringView").classList.remove("hidden");
    const resume=preferredResume(eventId);
    state.currentFoursome=resume&&hasSecondFoursome()&&[1,2].includes(Number(resume.currentFoursome))?Number(resume.currentFoursome):1;
    state.currentHole=resume?Math.max(1,Math.min(18,Number(resume.currentHole)||1)):nextIncompleteHole(state.currentFoursome);
