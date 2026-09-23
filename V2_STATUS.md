@@ -3,9 +3,9 @@
 ## Current pickup checkpoint — September 23, 2026
 
 - Active branch: `v2-platform-rebuild`
-- Checkpoint commit: `d6ef727`
-- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta3` (previous live build)
-- Next beta source: `beta4` is complete on the branch and awaiting Cloudflare publication
+- Release candidate: `beta4`
+- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta4`
+- Deployment: GitHub Actions publishes this isolated branch after the V2 regression suite passes
 - Setup navigation: Details → Players → Games → Review
 - Mobile fix: step buttons are wired and the browser-compatible course module replaces the JSON import
 - Environment: isolated V2 beta project and isolated `tngc-scoring-v2-beta` D1 database
