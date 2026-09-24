@@ -66,6 +66,7 @@ const games=read("functions/api/v2/events/[id]/games.js");
 const trigger=read("migrations/0008_live_round_guards.sql");
 const html=read("index.html");
 const app=read("app-v2.js");
+const styles=read("styles.css");
 const theme=read("tngc-theme.css");
 if(!scores.includes("AND revision=?")||!scores.includes("Scorecard confirmed; organizer must unlock it for correction"))fail("server score guards");
 if(!common.includes("requireOrganizer")||!common.includes("sha256Hex"))fail("organizer capability auth");
@@ -85,6 +86,7 @@ if(!app.includes("nassauWager:''")||!app.includes("Enter the Nassau wager before
 if(!app.includes("state.games.stableford&&net!==null")||!app.includes("Gross <strong>")||!app.includes("Net <strong>"))fail("explicit gross net and optional Stableford scoring");
 if(!app.includes("8 Player Maximum")||!app.includes("disabled-action"))fail("eight-player add guard");
 if(!html.includes("prevHoleBottom")||!html.includes("nextHoleBottom"))fail("mobile hole navigation");
+if(!styles.includes("@media(max-width:520px)")||!styles.includes(".command-actions{display:grid")||!styles.includes(".modal-card{width:100%")||!theme.includes(".hole-nav{position:static}"))fail("complete mobile responsive pass");
 if(!theme.includes("--gold:")||!theme.includes(".forty-ball-tracker")||!theme.includes(".live-nassau"))fail("TNGC theme and game surfaces");
 
 console.log("V2 CI PASS");

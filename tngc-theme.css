@@ -91,3 +91,5 @@ body{background:linear-gradient(180deg,#e9e7e0 0,#f5f4f0 240px);font-size:16px}
   .nlp-grid{grid-template-columns:1fr 1fr}.nlp-grid .btn{grid-column:1/-1}
   .side-head,.side-summary{display:grid}.side-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.side-kpis>div{padding:8px 6px}.side-kpis strong{font-size:18px}
 }
+@media(max-width:760px){.hole-nav{position:static}.score-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;max-width:none}.score-actions .sync-badge{grid-column:1/-1}.command-grid,.ledger-net{grid-template-columns:1fr}}
+@media(max-width:520px){.top-game-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.side-kpis{grid-template-columns:1fr}.side-summary{grid-template-columns:1fr}.nlp-grid{grid-template-columns:1fr}.nlp-grid .btn{grid-column:auto}}

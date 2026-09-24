@@ -24,6 +24,7 @@
 - Gross and net scoring are explicit; Stableford is an independently selected game
 - Nassau matchup presentation and Press-the-Press behavior match the latest Ballyhack build
 - Large mobile previous/next-hole controls plus separate Score Entry and Round Scorecard tabs
+- Full responsive pass across setup, scoring, scorecard, games, Ledger, Command Center, join, confirmation and dialog surfaces
 
 Continue only from this checkpoint. The September 19 checkout is archived and must not be used.
 

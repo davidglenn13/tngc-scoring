@@ -50,3 +50,25 @@ button:disabled{cursor:not-allowed}.disabled-action{background:#e1e5e9;color:#77
  .hole-arrow{min-height:56px;font-size:36px}.hole-actions{position:sticky;bottom:8px;z-index:7;grid-template-columns:1fr 1fr;padding:8px;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 5px 18px rgba(7,27,47,.16)}.hole-actions strong{grid-column:1/-1;grid-row:1}.hole-actions .btn{grid-row:2;min-height:52px;padding:8px 6px}
  .score-player{grid-template-columns:1fr 82px}.score-result{grid-column:1/-1}.score-result>span{font-size:11px}.nassau-matchup-heading{display:grid}.nassau-teams{grid-template-columns:1fr}.nassau-teams>strong{padding:2px}.nlp-grid{grid-template-columns:1fr 1fr}.nlp-grid button{grid-column:1/-1;min-height:50px}.nassau-result-row,.stableford-row{align-items:flex-start}
 }
+
+html,body{max-width:100%;overflow-x:hidden}button,input,select{touch-action:manipulation}.scorecard-scroll{-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}.scorecard-table th,.scorecard-table td{min-width:44px}.scorecard-table .name{min-width:88px;z-index:2}
+@media(max-width:760px){
+ .hero{align-items:flex-start}.brand{min-width:0}.hero p{line-height:1.35}.env-badge{flex:0 0 auto}
+ .shell{width:100%;max-width:100%;padding-left:8px;padding-right:8px}.panel{width:100%;max-width:100%;padding:12px;margin-bottom:10px}
+ .section-head,.score-topbar{display:grid;grid-template-columns:1fr;gap:10px}.score-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;max-width:none;justify-items:stretch}.score-actions .sync-badge{grid-column:1/-1;text-align:center}.score-actions .btn{width:100%;min-height:46px}
+ .step,.btn,.bottom-nav button,.segmented button{min-height:46px}.builder-actions{gap:10px}.builder-actions .btn{flex:1}.game-choice{grid-template-columns:1fr 44px;min-height:74px}.game-choice input{width:28px;height:28px;justify-self:center}
+ .field-grid input,.field-grid select{min-height:48px;font-size:16px}.review-grid{gap:8px}.review-card{padding:11px}
+ .segmented{overflow-x:auto;-webkit-overflow-scrolling:touch}.segmented button{min-width:120px}.hole-nav{position:static}.progress-head{display:grid;grid-template-columns:1fr}.progress-head span:last-child{text-align:left}
+ .quick-game-grid{grid-template-columns:1fr}.quick-game-grid input,.quick-game-grid select{font-size:16px;min-height:48px}.quick-stableford{min-height:52px}
+ .scorecard-scroll{width:calc(100% + 24px);margin-left:-12px;margin-right:-12px;padding:0 12px 8px}.scorecard-table{font-size:12px}
+ .ledger-net,.command-grid{grid-template-columns:1fr}.payment-row{display:grid;grid-template-columns:1fr auto;align-items:center}.command-title{grid-template-columns:1fr}.command-title .btn{width:100%}.command-actions{display:grid;grid-template-columns:1fr}.command-actions .btn,.command-actions .file-btn{width:100%;justify-content:center;min-height:48px}.metric{padding:11px}.missing-list span,.audit-row{overflow-wrap:anywhere}
+ .modal-backdrop{padding:8px}.modal-card{width:100%;max-height:92vh;padding:16px 13px}.chit-head{display:grid}.chit-line{align-items:flex-start}.join-player-list button{min-height:60px}.confirmation-card{padding:11px}
+}
+@media(max-width:520px){
+ .hero h1{font-size:22px}.hero .eyebrow{font-size:9px}.steps{gap:6px}.step{padding:8px 4px}
+ .top-game-nav{grid-template-columns:repeat(2,minmax(0,1fr));position:sticky;top:0}.top-game-nav button{min-height:48px}
+ .hole-nav{grid-template-columns:54px 1fr 54px;gap:7px;padding:9px}.hole-center strong{font-size:30px}
+ .side-kpis,.nassau-kpis{grid-template-columns:1fr}.side-summary{grid-template-columns:1fr}.forty-ball-tracker{grid-template-columns:1fr}.forty-ball-tracker>div:first-child{grid-column:auto}
+ .nlp-grid{grid-template-columns:1fr}.nlp-grid .btn,.nlp-grid .nlp-side:last-child{grid-column:auto}.nassau-result-row,.stableford-row{display:grid}.nassau-result-row strong,.stableford-row strong{text-align:left}
+ .ledger-player{min-width:0}.ledger-player span{min-width:0}.ledger-player b{overflow-wrap:anywhere}.payment-row{grid-template-columns:1fr}.payment-row strong{text-align:left}
+}
