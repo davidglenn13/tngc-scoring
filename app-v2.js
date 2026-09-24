@@ -458,10 +458,12 @@ function renderLiveNassau(){
  const teamName=t=>t.map(p=>p.name.split(" ")[0]).join(" / ");
  const standing=!result.played?"All square":result.aWins===result.bWins?"All square":`${teamName(result.aWins>result.bWins?result.teams[0]:result.teams[1])} ${Math.abs(result.aWins-result.bWins)} up`;
  const presses=pressesForGroup(g).filter(p=>p.segmentKey===seg.key),avail=pressAvailability({segment:seg,players:ps,presses,getNet:(p,h)=>netFor(p,h),currentHole:state.currentHole});
- const pressTeam=avail.pressedBy?(avail.pressedBy==="a"?result.teams[0]:result.teams[1]):null;
- const action=avail.kind==="counter"?"Press the Press":avail.kind==="press"?"Press Now":seg.singleHole?"No Press":"Press Unavailable";
- const standingText=standing;
- const pressStatus=seg.singleHole?`${seg.label} is a standalone Nassau match; presses are not available.`:avail.kind?`${teamName(pressTeam)} may ${avail.kind==="counter"?"press the press":"press"} from Hole ${avail.nextHole}.`:avail.reason||"No press is available.";
+ const original=presses.find(p=>!p.parentPressId)||null,counter=original?presses.find(p=>String(p.parentPressId||"")===String(original.id)):null;
+ const pressTeam=counter?(counter.pressedBy==="a"?result.teams[0]:result.teams[1]):original?(original.pressedBy==="a"?result.teams[1]:result.teams[0]):(avail.pressedBy?(avail.pressedBy==="a"?result.teams[0]:result.teams[1]):null);
+ const action=seg.singleHole?"No Press":counter?"Press the Press Recorded":original?"Press the Press":avail.kind==="press"?"Press Now":"Press Unavailable";
+const standingText=standing;
+const pressAvailabilityText=counter?`Press the Press was recorded on Hole ${counter.fromHole}. Both press bets are active.`:original&&avail.reason?`Press the Press may only start on the next unplayed hole, Hole ${avail.nextHole}.`:avail.kind?`${teamName(pressTeam)} may ${avail.kind==="counter"?"press the press":"press"} from Hole ${avail.nextHole}.`:avail.reason||"No press is available.";
+const pressStatus=seg.singleHole?`${seg.label} is a standalone Nassau match; presses are not available.`:pressAvailabilityText;
  host.classList.remove("hidden");
  host.innerHTML=`<div class="eyebrow">LIVE NASSAU · ${esc(seg.label).toUpperCase()}</div>
  <div class="press-head"><div><h3>Press Bet</h3><p>${esc(pressStatus)}</p></div><button id="addLivePressBtn" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}</button></div>

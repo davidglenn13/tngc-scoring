@@ -63,6 +63,9 @@ export function pressAvailability({segment,players,presses=[],getNet,currentHole
   if(segment.singleHole) return {kind:null,reason:"No presses on standalone one-hole matches"};
   const next=nextUnplayedHole({segment,players,getNet});
   if(next===null) return {kind:null,reason:"Match complete"};
+  if(currentHole!==null && Number(currentHole)!==Number(next)){
+    return {kind:null,reason:`Presses may only be elected on the next unplayed hole, Hole ${next}`,nextHole:next};
+  }
   const original=originalPress(presses,segment.key);
 
   // Ballyhack's live workflow evaluates the match only through the current
@@ -87,6 +90,9 @@ export function pressAvailability({segment,players,presses=[],getNet,currentHole
 
   const latest=[...presses].filter(p=>p.segmentKey===segment.key)
     .sort((a,b)=>Number(b.fromHole)-Number(a.fromHole))[0]||original;
+  if(Number(next)<=Number(original.fromHole)){
+    return {kind:null,reason:`Press the Press becomes available after Hole ${original.fromHole} is completed`,nextHole:next};
+  }
   const duplicate=presses.some(p=>p.segmentKey===segment.key&&Number(p.fromHole)===Number(next));
   if(duplicate)return {kind:null,reason:"A press has already been recorded from this hole",nextHole:next};
   const opposite=latest.pressedBy==="a"?"b":"a";
