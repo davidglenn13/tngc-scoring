@@ -1,26 +1,27 @@
 # TNGC Scoring V2 — Rebuild Status
 
-## Current pickup checkpoint — September 23, 2026
+## Current pickup checkpoint — September 24, 2026
 
 - Active branch: `v2-platform-rebuild`
-- Release candidate: `beta5`
-- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta5`
+- Release candidate: `beta6`
+- Active beta: `https://tngc-scoring-v2-beta.pages.dev/?v=beta6`
 - Deployment: GitHub Actions publishes this isolated branch after the V2 regression suite passes
 - Setup navigation: Details → Players → Games → Review
 - Mobile fix: step buttons are wired and the browser-compatible course module replaces the JSON import
 - Environment: isolated V2 beta project and isolated `tngc-scoring-v2-beta` D1 database
-- Database status at checkpoint: healthy and empty
+- Database status at checkpoint: healthy and beta-only
 - Trump National Charlotte visual theme applied without fabricating a club logo
 - Setup boxes now read Step 1: Details through Step 4: Review
 - Saved-golfer menu added to Step 2 using device-local history
 - Nassau Format(s) copy, complete live match/press presentation, and Press the Press controls restored
-- 40 Ball live tracker/results and counted-score controls restored
-- Score / Games / Ledger tabs moved to the top and switch views
+- 40 Ball live tracker moved above score entry; counted net is shown relative to par
+- Ballyhack page order restored: Score Entry → Games → Ledger → Round Scorecard
+- Game and wager setup lives on the Games page, matching the Ballyhack workflow
 - Unique game sharing plus guest join-by-name added
-- Shared-link guests are locked to their own foursome's individual scorecard
+- Private foursome links enforce score isolation at both the UI and API layers
 - Mobile player cards and an inactive 8-player maximum state
 - 40 Ball limited to 8 players in two groups of 4; 30 Ball supports 6 players in two groups of 3
-- Nassau wager starts empty and is required before play
+- Nassau and Ball wagers start empty and are required before play
 - Gross and net scoring are explicit; Stableford is an independently selected game
 - Nassau matchup presentation and Press-the-Press behavior match the latest Ballyhack build
 - Large mobile previous/next-hole controls plus separate Score Entry and Round Scorecard tabs

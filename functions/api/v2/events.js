@@ -1,4 +1,4 @@
-import {json,bad,newId,normalizePlayers,audit,randomSecret,sha256Hex} from "./_common.js";
+import {json,bad,newId,normalizePlayers,audit,randomSecret,sha256Hex,teamAccessToken} from "./_common.js";
 
 export async function onRequestPost(context){
   try{
@@ -33,7 +33,11 @@ export async function onRequestPost(context){
       player_count:players.length,course_id:courseId,mode
     });
 
-    return json({id,status:"live",players:players.map(p=>p.id),organizer_token:organizerToken},201);
+    const accessEvent={organizer_token_hash:organizerHash};
+    return json({
+      id,status:"live",players:players.map(p=>p.id),organizer_token:organizerToken,
+      team_access:{1:await teamAccessToken(accessEvent,1),2:await teamAccessToken(accessEvent,2)}
+    },201);
   }catch(err){
     return bad(err.message||"Unable to create event",err.status||400);
   }

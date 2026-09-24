@@ -71,3 +71,23 @@ export async function requireOrganizer(context,eventId){
     throw Object.assign(new Error("Organizer authorization failed"),{status:403});
   return event;
 }
+
+export async function teamAccessToken(event,foursomeNo){
+  const g=Number(foursomeNo);
+  if(![1,2].includes(g)||!event?.organizer_token_hash)throw new Error("Private foursome access is unavailable");
+  return sha256Hex(`${event.organizer_token_hash}:tngc-team:${g}`);
+}
+
+export async function requireEventAccess(context,eventId,requestedFoursome=null){
+  const event=await requireEvent(context.env,eventId);
+  const organizer=bearerToken(context.request);
+  if(organizer&&event.organizer_token_hash&&await sha256Hex(organizer)===String(event.organizer_token_hash))
+    return {event,organizer:true,foursome:null};
+  const headerGroup=Number(context.request.headers.get("x-foursome")||0);
+  const group=Number(requestedFoursome||headerGroup);
+  const access=String(context.request.headers.get("x-team-access")||"");
+  if(![1,2].includes(group)||!access)throw Object.assign(new Error("Private foursome link required"),{status:403});
+  const expected=await teamAccessToken(event,group);
+  if(access!==expected)throw Object.assign(new Error("Private foursome link is invalid"),{status:403});
+  return {event,organizer:false,foursome:group};
+}

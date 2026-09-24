@@ -1,11 +1,12 @@
-import {json,bad,cleanId,requireEvent,audit} from "../../_common.js";
+import {json,bad,cleanId,requireEventAccess,audit} from "../../_common.js";
 
 export async function onRequestPut(context){
   try{
-    const eventId=cleanId(context.params.id); await requireEvent(context.env,eventId);
+    const eventId=cleanId(context.params.id); const access=await requireEventAccess(context,eventId);
     const b=await context.request.json();
     const g=Number(b.foursome_no),playerId=String(b.player_id||""),hole=Number(b.hole),value=!!b.value;
     if(![1,2].includes(g)||!playerId||!Number.isInteger(hole)||hole<1||hole>18) return bad("Invalid Ball game selection");
+    if(!access.organizer&&g!==Number(access.foursome))return bad("This private link can only select scores for its own foursome",403);
 
     const game=await context.env.DB.prepare(
       "SELECT preset_key,config_json FROM v2_games WHERE event_id=? AND game_type='forty_ball' AND status='active' LIMIT 1"

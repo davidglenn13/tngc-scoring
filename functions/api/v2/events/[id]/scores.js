@@ -1,4 +1,4 @@
-import {json,bad,cleanId,requireEvent,audit} from "../../_common.js";
+import {json,bad,cleanId,requireEventAccess,audit} from "../../_common.js";
 
 async function cell(env,eventId,playerId,hole){
   return await env.DB.prepare(
@@ -9,7 +9,7 @@ const changed=r=>Number(r?.meta?.changes??r?.changes??0);
 
 export async function onRequestPatch(context){
   try{
-    const eventId=cleanId(context.params.id);await requireEvent(context.env,eventId);
+    const eventId=cleanId(context.params.id);const access=await requireEventAccess(context,eventId);
     const b=await context.request.json();
     const playerId=String(b.player_id||""),hole=Number(b.hole);
     const gross=b.gross===""||b.gross===null?null:Number(b.gross);
@@ -22,6 +22,7 @@ export async function onRequestPatch(context){
       "SELECT id,foursome_no FROM v2_players WHERE id=? AND event_id=?"
     ).bind(playerId,eventId).first();
     if(!player)return bad("Player not in event",404);
+    if(!access.organizer&&Number(player.foursome_no)!==Number(access.foursome))return bad("This private link can only score its own foursome",403);
 
     const card=await context.env.DB.prepare(
       "SELECT status FROM v2_scorecard_confirmations WHERE event_id=? AND foursome_no=?"

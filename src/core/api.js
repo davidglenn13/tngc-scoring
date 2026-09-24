@@ -1,7 +1,16 @@
 export class V2Api {
-  constructor(base="/api/v2"){ this.base=base; this.organizerTokens=new Map(); }
+  constructor(base="/api/v2"){ this.base=base; this.organizerTokens=new Map(); this.viewerAccess=new Map(); }
   setOrganizerToken(id,token){if(token)this.organizerTokens.set(String(id),String(token));else this.organizerTokens.delete(String(id));}
+  setViewerAccess(id,foursome,token){
+    const g=Number(foursome);
+    if([1,2].includes(g)&&token)this.viewerAccess.set(String(id),{foursome:g,token:String(token)});
+    else this.viewerAccess.delete(String(id));
+  }
   organizerHeaders(id){const t=this.organizerTokens.get(String(id));return t?{authorization:`Bearer ${t}`}:{}}
+  accessHeaders(id){
+    const organizer=this.organizerHeaders(id);if(organizer.authorization)return organizer;
+    const v=this.viewerAccess.get(String(id));return v?{"x-foursome":String(v.foursome),"x-team-access":v.token}:{};
+  }
 
   async request(path,options={}){
     const res=await fetch(this.base+path,{
@@ -21,10 +30,10 @@ export class V2Api {
   createEvent(event,players){
     return this.request("/events",{method:"POST",body:JSON.stringify({event,players})});
   }
-  snapshot(id){ return this.request(`/events/${encodeURIComponent(id)}/snapshot`); }
+  snapshot(id){ return this.request(`/events/${encodeURIComponent(id)}/snapshot`,{headers:this.accessHeaders(id)}); }
   saveScore(id,payload){
     return this.request(`/events/${encodeURIComponent(id)}/scores`,{
-      method:"PATCH",body:JSON.stringify(payload)
+      method:"PATCH",headers:this.accessHeaders(id),body:JSON.stringify(payload)
     });
   }
   saveGames(id,games){
@@ -44,7 +53,7 @@ export class V2Api {
   }
   setFortyBallSelection(id,payload){
     return this.request(`/events/${encodeURIComponent(id)}/forty-ball`,{
-      method:"PUT",body:JSON.stringify(payload)
+      method:"PUT",headers:this.accessHeaders(id),body:JSON.stringify(payload)
     });
   }
   audit(id,limit=30){ return this.request(`/events/${encodeURIComponent(id)}/audit?limit=${limit}`,{headers:this.organizerHeaders(id)}); }
@@ -57,7 +66,7 @@ export class V2Api {
   backup(id){ return this.request(`/events/${encodeURIComponent(id)}/backup`,{headers:this.organizerHeaders(id)}); }
   confirmation(id,foursomeNo,action="confirm",actor="organizer"){
     return this.request(`/events/${encodeURIComponent(id)}/confirmation`,{
-      method:"PUT",headers:action==="unlock"?this.organizerHeaders(id):{},body:JSON.stringify({foursome_no:foursomeNo,action,actor})
+      method:"PUT",headers:action==="unlock"?this.organizerHeaders(id):this.accessHeaders(id),body:JSON.stringify({foursome_no:foursomeNo,action,actor})
     });
   }
   restore(id,backup){

@@ -12,9 +12,9 @@ const $=s=>document.querySelector(s);
 const api=new V2Api();
 const state={
  builderStep:1,event:{name:'TNGC Round',date:new Date().toISOString().slice(0,10)},
- players:[],games:{nassau:false,nassauPreset:'5-5-5-1-1-1',nassauWager:'',nassauByGroup:{1:{enabled:false,preset:'5-5-5-1-1-1',wager:''},2:{enabled:false,preset:'5-5-5-1-1-1',wager:''}},stableford:false,forty:false,ballTarget:40,fortyWager:5},
+ players:[],games:{nassau:false,nassauPreset:'5-5-5-1-1-1',nassauWager:'',nassauByGroup:{1:{enabled:false,preset:'5-5-5-1-1-1',wager:''},2:{enabled:false,preset:'5-5-5-1-1-1',wager:''}},stableford:false,forty:false,ballTarget:40,fortyWager:''},
  scores:{},scoreRevisions:{},currentHole:1,currentFoursome:1,visited18:false,
- eventId:null,cloudMode:true,lastSync:null,pollTimer:null,pendingScores:new Map(),auditEvents:[],commandBusy:false,fortySelections:{1:{},2:{}},presses:[],remoteGames:[],confirmations:{1:'in_progress',2:'in_progress'},scoreConflict:null,outbox:[],flushingOutbox:false,organizerToken:null,viewerFoursome:null,viewerPlayerId:null
+ eventId:null,cloudMode:true,lastSync:null,pollTimer:null,pendingScores:new Map(),auditEvents:[],commandBusy:false,fortySelections:{1:{},2:{}},presses:[],remoteGames:[],confirmations:{1:'in_progress',2:'in_progress'},scoreConflict:null,outbox:[],flushingOutbox:false,organizerToken:null,teamAccess:{},linkFoursome:null,viewerFoursome:null,viewerPlayerId:null
 };
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2);
@@ -23,11 +23,17 @@ const LOCAL_KEY="tngc-v2-device";
 const SAVED_PLAYERS_KEY="tngc-v2-saved-players";
 
 const organizerKey=id=>`tngc-v2-organizer:${id}`;
+const teamAccessKey=id=>`tngc-v2-team-access:${id}`;
 const outboxKey=id=>`tngc-v2-outbox:${id}`;
 function loadOrganizerToken(id){try{return localStorage.getItem(organizerKey(id))||null;}catch{return null;}}
 function saveOrganizerToken(id,token){
  state.organizerToken=token||null;api.setOrganizerToken(id,token||null);
  try{if(token)localStorage.setItem(organizerKey(id),token);else localStorage.removeItem(organizerKey(id));}catch{}
+}
+function loadTeamAccess(id){try{const x=JSON.parse(localStorage.getItem(teamAccessKey(id))||"{}");return x&&typeof x==="object"?x:{};}catch{return {};}}
+function saveTeamAccess(id,tokens){
+ state.teamAccess={...state.teamAccess,...(tokens||{})};
+ try{localStorage.setItem(teamAccessKey(id),JSON.stringify(state.teamAccess));}catch{}
 }
 function isOrganizer(){return !!state.organizerToken;}
 function loadOutbox(id){try{const x=JSON.parse(localStorage.getItem(outboxKey(id))||"[]");return Array.isArray(x)?x:[];}catch{return [];}}
@@ -87,14 +93,18 @@ function saveViewer(id,player){
 }
 function showJoinGate(){
  const old=document.querySelector("#joinGameModal");if(old)old.remove();
- const host=document.createElement("div");host.id="joinGameModal";host.innerHTML=`<div class="modal-backdrop join-backdrop"><section class="modal-card join-card"><div class="eyebrow">JOIN THIS GAME</div><h2>${esc(state.event.name)}</h2><p>Select your name. This device will only show individual scores for your foursome.</p><div class="join-player-list">${state.players.map(p=>`<button type="button" data-join-player="${p.id}"><span><b>${esc(p.name)}</b><small>Foursome ${p.foursome}</small></span><strong>Join</strong></button>`).join("")}</div></section></div>`;
+ const choices=state.linkFoursome?state.players.filter(p=>Number(p.foursome)===Number(state.linkFoursome)):[];
+ const host=document.createElement("div");host.id="joinGameModal";host.innerHTML=`<div class="modal-backdrop join-backdrop"><section class="modal-card join-card"><div class="eyebrow">JOIN THIS GAME</div><h2>${esc(state.event.name)}</h2><p>${state.linkFoursome?`This is the private Foursome ${state.linkFoursome} scoring link. Select your name to continue.`:"Ask the organizer for your foursome's private scoring link."}</p><div class="join-player-list">${choices.map(p=>`<button type="button" data-join-player="${p.id}"><span><b>${esc(p.name)}</b><small>Foursome ${p.foursome}</small></span><strong>Join</strong></button>`).join("")}</div></section></div>`;
  document.body.appendChild(host);
  host.querySelectorAll("[data-join-player]").forEach(b=>b.onclick=()=>{const p=state.players.find(x=>x.id===b.dataset.joinPlayer);if(!p)return;saveViewer(state.eventId,p);host.remove();$("#scoringView").classList.remove("hidden");renderScoring();startPolling();setCloudStatus("CLOUD LIVE","ok");});
 }
 async function shareGame(){
  if(!state.eventId)return alert("The game link will be available as soon as cloud setup finishes.");
- const url=new URL(location.href);url.search="";url.searchParams.set("event",state.eventId);
- const data={title:`${state.event.name} · TNGC Scoring`,text:"Join this TNGC game for live scoring.",url:url.toString()};
+ const group=Number(state.currentFoursome)||1,currentUrl=new URL(location.href),access=state.teamAccess?.[group]||state.teamAccess?.[String(group)]||(Number(state.linkFoursome)===group?currentUrl.searchParams.get("access"):"");
+ if(!access)return alert("The private foursome link is not available yet. Refresh the beta and try again.");
+ const url=currentUrl;url.search="";url.searchParams.set("event",state.eventId);
+ url.searchParams.set("foursome",String(group));url.searchParams.set("access",access);
+ const data={title:`${state.event.name} · Foursome ${group}`,text:`Join Foursome ${group} for private TNGC scoring.`,url:url.toString()};
  try{
    if(navigator.share){await navigator.share(data);return;}
    await navigator.clipboard.writeText(data.url);alert("Game link copied. Send it to the other players.");
@@ -121,7 +131,7 @@ function playerRows(){normalizeFoursomes();const second=hasSecondFoursome();retu
 function stepHtml(){
  if(state.builderStep===1)return `<div class="field-grid"><label>Outing name<input id="eventName" value="${esc(state.event.name)}"></label><label>Date<input id="eventDate" type="date" value="${state.event.date}"></label></div><p class="muted">TNGC Charlotte course data is preloaded and validated.</p>`;
  if(state.builderStep===2){const full=state.players.length>=8;return `${savedPlayersHtml()}<div class="player-list">${playerRows()}</div><div class="inline-actions player-actions"><span class="muted"><b>${state.players.length}/8 players</b>${full?' · Maximum reached':''}</span><button id="addPlayer" class="btn ${full?'disabled-action':'secondary'}" type="button" ${full?'disabled aria-disabled="true"':''}>${full?'8 Player Maximum':'+ Add Player'}</button></div><p class="muted">${hasSecondFoursome()?'Assign players to Foursome 1 or Foursome 2.':'With 2–4 players, everyone stays in Foursome 1 automatically.'}</p>`;}
- if(state.builderStep===3){const can30=state.players.length===6,can40=state.players.length===8;return `<div class="game-choice"><div><h3>Nassau Format(s)</h3><p>Four players per participating foursome. Gross and net scores determine each match.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Nassau format<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Nassau wager ($)<input id="nassauWager" type="number" inputmode="numeric" min="1" placeholder="Enter wager" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice ${can30?'':'unavailable'}"><div><h3>30 Ball</h3><p>Exactly 6 players · two groups of 3 · select 30 net scores per group.</p></div><input id="thirtyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)===30?'checked':''} ${can30?'':'disabled'}></div><div class="game-choice ${can40?'':'unavailable'}"><div><h3>40 Ball</h3><p>Exactly 8 players · two groups of 4 · select 40 net scores per group.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)!==30?'checked':''} ${can40?'':'disabled'}></div>${state.games.forty?`<label>${ballName()} wager per player ($)<input id="fortyWager" type="number" inputmode="numeric" min="0" value="${state.games.fortyWager}"></label>`:''}<div class="game-choice"><div><h3>Stableford</h3><p>Optional points game. Points appear only when Stableford is selected.</p></div><input id="stablefordToggle" type="checkbox" ${state.games.stableford?'checked':''}></div>`;}
+ if(state.builderStep===3){const can30=state.players.length===6,can40=state.players.length===8;return `<div class="game-choice"><div><h3>Nassau Format(s)</h3><p>Four players per participating foursome. Gross and net scores determine each match.</p></div><input id="nassauToggle" type="checkbox" ${state.games.nassau?'checked':''}></div>${state.games.nassau?`<div class="field-grid"><label>Nassau format<select id="nassauPreset"><option value="5-5-5-1-1-1" ${state.games.nassauPreset==='5-5-5-1-1-1'?'selected':''}>5-5-5-1-1-1</option><option value="6-6-6" ${state.games.nassauPreset==='6-6-6'?'selected':''}>6-6-6</option></select></label><label>Nassau wager ($)<input id="nassauWager" type="number" inputmode="numeric" min="1" placeholder="Enter wager" value="${state.games.nassauWager}"></label></div>`:''}<div class="game-choice ${can30?'':'unavailable'}"><div><h3>30 Ball</h3><p>Exactly 6 players · two groups of 3 · select 30 net scores per group.</p></div><input id="thirtyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)===30?'checked':''} ${can30?'':'disabled'}></div><div class="game-choice ${can40?'':'unavailable'}"><div><h3>40 Ball</h3><p>Exactly 8 players · two groups of 4 · select 40 net scores per group.</p></div><input id="fortyToggle" type="checkbox" ${state.games.forty&&Number(state.games.ballTarget)!==30?'checked':''} ${can40?'':'disabled'}></div>${state.games.forty?`<label>${ballName()} wager per player ($)<input id="fortyWager" type="number" inputmode="numeric" min="1" placeholder="Enter wager" value="${state.games.fortyWager}"></label>`:''}<div class="game-choice"><div><h3>Stableford</h3><p>Optional points game. Points appear only when Stableford is selected.</p></div><input id="stablefordToggle" type="checkbox" ${state.games.stableford?'checked':''}></div>`;}
  return `<div class="review-grid"><div class="review-card"><h3>Round</h3><p>${esc(state.event.name)}</p><p>${state.event.date}</p></div><div class="review-card"><h3>Players</h3><p>${state.players.length} golfers</p><p>${hasSecondFoursome()?'Two foursomes':'One foursome'}</p></div><div class="review-card"><h3>Games</h3><p>${state.games.nassau?`Nassau ${state.games.nassauPreset} · $${state.games.nassauWager}`:'No Nassau'}</p><p>${state.games.forty?`${ballName()} · $${state.games.fortyWager}`:'No Ball game'}</p><p>${state.games.stableford?'Stableford selected':'No Stableford'}</p></div><div class="review-card"><h3>Ready</h3><p>Gross scores feed net scoring, selected games, the scorecard and Ledger.</p></div></div>`;
 }
 function bindBuilder(){
@@ -130,13 +140,13 @@ function bindBuilder(){
  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>removePlayer(b.dataset.remove));
  document.querySelectorAll('[data-saved-player]').forEach(b=>b.onclick=()=>addSavedPlayer(b.dataset.savedPlayer));
  $('#nassauToggle')?.addEventListener('change',e=>{state.games.nassau=e.target.checked;if(e.target.checked)state.games.forty=false;renderBuilder();});
- $('#thirtyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=30;state.games.nassau=false;assignBallGroups(30);}renderBuilder();});
- $('#fortyToggle')?.addEventListener('change',e=>{state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=40;state.games.nassau=false;assignBallGroups(40);}renderBuilder();});
+ $('#thirtyToggle')?.addEventListener('change',e=>{const wasBall=state.games.forty;state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=30;state.games.nassau=false;if(!wasBall)state.games.fortyWager='';assignBallGroups(30);}renderBuilder();});
+ $('#fortyToggle')?.addEventListener('change',e=>{const wasBall=state.games.forty;state.games.forty=e.target.checked;if(e.target.checked){state.games.ballTarget=40;state.games.nassau=false;if(!wasBall)state.games.fortyWager='';assignBallGroups(40);}renderBuilder();});
  $('#stablefordToggle')?.addEventListener('change',e=>state.games.stableford=e.target.checked);
- $('#nassauPreset')?.addEventListener('change',e=>state.games.nassauPreset=e.target.value);$('#nassauWager')?.addEventListener('input',e=>state.games.nassauWager=e.target.value===''?'':Math.max(0,Number(e.target.value)));$('#fortyWager')?.addEventListener('change',e=>state.games.fortyWager=Math.max(0,Number(e.target.value||0)));
+ $('#nassauPreset')?.addEventListener('change',e=>state.games.nassauPreset=e.target.value);$('#nassauWager')?.addEventListener('input',e=>state.games.nassauWager=e.target.value===''?'':Math.max(0,Number(e.target.value)));$('#fortyWager')?.addEventListener('input',e=>state.games.fortyWager=e.target.value===''?'':Math.max(0,Number(e.target.value)));
 }
 function renderBuilder(){$('#builderStep').innerHTML=stepHtml();$('#builderStepBadge').textContent=`${state.builderStep} of 4`;document.querySelectorAll('.step').forEach(b=>{const n=+b.dataset.step;b.classList.toggle('active',n===state.builderStep);b.classList.toggle('done',n<state.builderStep)});$('#backBtn').style.visibility=state.builderStep===1?'hidden':'visible';$('#nextBtn').textContent=state.builderStep===4?'Start Scoring':'Continue';bindBuilder();}
-function validate(){if(state.builderStep===1&&(!state.event.name.trim()||!state.event.date))return 'Complete the round details.';if(state.builderStep===2){if(state.players.length<2)return 'Add at least two players.';if(state.players.some(p=>!p.name.trim()||p.index===''))return 'Enter a name and index for every player.';const n=state.players.map(p=>p.name.trim().toLowerCase());if(new Set(n).size!==n.length)return 'Player names must be unique.';if(hasSecondFoursome()){const c=groupSizes();if(c.some(x=>x<1||x>4))return 'Use both foursomes with no more than four players in either.';}}if(state.builderStep===3){if(state.games.nassau){if(!(Number(state.games.nassauWager)>0))return 'Enter the Nassau wager before continuing.';for(const g of [1,2]){const ps=state.players.filter(p=>p.foursome===g);if(ps.length&&ps.length!==4)return 'Nassau requires four players in each participating foursome.';}}if(state.games.forty&&!ballRosterReady(state.games.ballTarget))return `${ballName()} requires exactly ${state.games.ballTarget===30?'6 players in two groups of 3':'8 players in two groups of 4'}.`; }return '';}
+function validate(){if(state.builderStep===1&&(!state.event.name.trim()||!state.event.date))return 'Complete the round details.';if(state.builderStep===2){if(state.players.length<2)return 'Add at least two players.';if(state.players.some(p=>!p.name.trim()||p.index===''))return 'Enter a name and index for every player.';const n=state.players.map(p=>p.name.trim().toLowerCase());if(new Set(n).size!==n.length)return 'Player names must be unique.';if(hasSecondFoursome()){const c=groupSizes();if(c.some(x=>x<1||x>4))return 'Use both foursomes with no more than four players in either.';}}if(state.builderStep===3){if(state.games.nassau){if(!(Number(state.games.nassauWager)>0))return 'Enter the Nassau wager before continuing.';for(const g of [1,2]){const ps=state.players.filter(p=>p.foursome===g);if(ps.length&&ps.length!==4)return 'Nassau requires four players in each participating foursome.';}}if(state.games.forty){if(!ballRosterReady(state.games.ballTarget))return `${ballName()} requires exactly ${state.games.ballTarget===30?'6 players in two groups of 3':'8 players in two groups of 4'}.`;if(!(Number(state.games.fortyWager)>0))return `Enter the ${ballName()} wager before continuing.`;} }return '';}
 function firstSetupError(){
  const current=state.builderStep;
  for(const step of [1,2,3]){state.builderStep=step;const error=validate();if(error){state.builderStep=current;return {step,error};}}
@@ -228,6 +238,7 @@ async function ensureCloudEvent(){
     },playerPayloads());
     state.eventId=created.id;
     saveOrganizerToken(state.eventId,created.organizer_token);
+    saveTeamAccess(state.eventId,created.team_access||{});
     state.outbox=loadOutbox(state.eventId);
     await api.saveGames(state.eventId,gamePayloads());
     state.cloudMode=true;
@@ -274,12 +285,18 @@ async function pullSnapshot(){
   if(!state.eventId||!state.cloudMode)return;
   try{
     const snap=await api.snapshot(state.eventId);
+    if(snap.team_access)saveTeamAccess(state.eventId,snap.team_access);
     const active=document.activeElement;
     const activePid=active?.dataset?.scorePlayer||null;
     const activeKey=activePid?key(activePid,state.currentHole):null;
     const localActive=activeKey?state.scores[activeKey]:undefined;
     const merged=mergeSnapshot({localScores:state.scores,localRevisions:state.scoreRevisions,remoteRows:snap.scores||[],activeKey,activeValue:localActive,protectedValues:protectedValuesFromOutbox(state.outbox)});
     state.scores=merged.scores;state.scoreRevisions=merged.revisions;
+    if(!isOrganizer()&&state.viewerFoursome){
+      const allowed=new Set(groupPlayers(state.viewerFoursome).map(p=>p.id));
+      state.scores=Object.fromEntries(Object.entries(state.scores).filter(([k])=>allowed.has(k.slice(0,k.lastIndexOf("-")))));
+      state.scoreRevisions=Object.fromEntries(Object.entries(state.scoreRevisions).filter(([k])=>allowed.has(k.slice(0,k.lastIndexOf("-")))));
+    }
     state.remoteGames=snap.games||[];
     state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:""},2:{enabled:false,preset:"5-5-5-1-1-1",wager:""}};
     const fortyGame=(snap.games||[]).find(g=>g.game_type==="forty_ball");
@@ -324,13 +341,9 @@ function renderQuickGameSetup(){
  const host=$("#quickGameSetup");
  if(!host)return;
  const selected=gameLabel();
- host.innerHTML=`<div class="quick-game-head"><div><div class="eyebrow">SIDE GAME</div><b>${esc(selected)}</b></div>${isOrganizer()?`<button id="editGameBtn" class="btn ghost" type="button">${selected==="None"?"Select Game":"Edit"}</button>`:`<span class="organizer-lock">Organizer controls</span>`}</div>
- <div id="quickGameBody" class="hidden"></div>`;
- $("#editGameBtn")?.addEventListener("click",()=>{
-   const body=$("#quickGameBody");
-   body.classList.toggle("hidden");
-   if(!body.classList.contains("hidden"))renderQuickGameBody();
- });
+ host.innerHTML=`<div class="quick-game-head"><div><div class="eyebrow">SIDE GAME FOR THIS ROUND</div><b>${esc(selected)}</b></div>${isOrganizer()?"":`<span class="organizer-lock">Organizer controls</span>`}</div>
+ <div id="quickGameBody" class="${isOrganizer()?"":"hidden"}"></div>`;
+ if(isOrganizer())renderQuickGameBody();
 }
 function renderQuickGameBody(){
  const body=$("#quickGameBody");if(!body)return;
@@ -362,6 +375,7 @@ function renderQuickGameBody(){
    const type=$("#quickGameSelect").value,wagerRaw=$("#quickGameWager").value,wager=Math.max(0,Number(wagerRaw||0)),stableford=$("#quickStableford").checked;
    if(!state.eventId||!state.cloudMode)return alert("Game setup requires the shared cloud outing.");
    if((type==="nassau55"||type==="nassau66")&&!(wager>0))return alert("Enter the Nassau wager before saving.");
+   if((type==="forty"||type==="thirty")&&!(wager>0))return alert(`Enter the ${type==="thirty"?30:40} Ball wager before saving.`);
    try{
      if(type==="forty"||type==="thirty"){
        const target=type==="thirty"?30:40;
@@ -408,10 +422,10 @@ function renderScoring(){
  renderQuickGameSetup();
  const h=state.currentHole;$('#holeNumber').textContent=h;$('#holeMeta').textContent=`Par ${course.par[h-1]} · HCP ${course.strokeIndex[h-1]}`;$('#prevHole').disabled=h===1&&!state.visited18;$('#prevHoleBottom').disabled=h===1&&!state.visited18;$('#holeProgressLabel').textContent=`Hole ${h} of 18`;
  const ps=groupPlayers(state.currentFoursome),rows=playingRows(state.currentFoursome);
- $('#scoreRows').innerHTML=ps.map(p=>{const info=rows.find(x=>x.id===p.id),gross=state.scores[key(p.id,h)]??'',net=gross!==''?netFor(p,h):null,pts=state.games.stableford&&net!==null?stablefordPoints(net,course.par[h-1]):null;return `<div class="score-player"><div class="score-player-name"><b>${esc(p.name)}</b><small>${p.tee} · HI ${Number(p.index).toFixed(1)} · CH ${info.courseHandicap} · ${info.playingHandicap===0?'Plays off 0':`Playing Hcp ${info.playingHandicap}`}</small></div><label class="score-input-wrap"><span>Gross</span><input class="score-input" aria-label="${esc(p.name)} gross score for Hole ${h}" data-score-player="${p.id}" inputmode="numeric" type="number" min="1" max="15" value="${gross}" placeholder="—" ${state.confirmations[state.currentFoursome]==='confirmed'?'disabled':''}></label><div class="score-result">${gross!==''?`<span>Gross <strong>${gross}</strong></span><span>Net <strong>${net}</strong></span>${state.games.stableford?`<span>Stableford <strong>${pts} pts</strong></span>`:''}`:`<span>${info.playingHandicap===0?'No stroke':`${Math.max(0,info.playingHandicap)} playing hcp`} · enter gross</span>`}</div>${state.games.forty?`<button type="button" class="forty-toggle ${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'selected':''}" data-forty-player="${p.id}" ${gross===''?'disabled':''}>${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'✓ Counted':`Count in ${ballName()}`}</button>`:''}</div>`;}).join('');
+ $('#scoreRows').innerHTML=ps.map(p=>{const info=rows.find(x=>x.id===p.id),gross=state.scores[key(p.id,h)]??'',net=gross!==''?netFor(p,h):null,netDisplay=state.games.forty&&net!==null?formatRelative(net-course.par[h-1]):net,netLabel=state.games.forty?'Net to par':'Net',pts=state.games.stableford&&net!==null?stablefordPoints(net,course.par[h-1]):null;return `<div class="score-player"><div class="score-player-name"><b>${esc(p.name)}</b><small>${p.tee} · HI ${Number(p.index).toFixed(1)} · CH ${info.courseHandicap} · ${info.playingHandicap===0?'Plays off 0':`Playing Hcp ${info.playingHandicap}`}</small></div><label class="score-input-wrap"><span>Gross</span><input class="score-input" aria-label="${esc(p.name)} gross score for Hole ${h}" data-score-player="${p.id}" inputmode="numeric" type="number" min="1" max="15" value="${gross}" placeholder="—" ${state.confirmations[state.currentFoursome]==='confirmed'?'disabled':''}></label><div class="score-result">${gross!==''?`<span>Gross <strong>${gross}</strong></span><span>${netLabel} <strong>${netDisplay}</strong></span>${state.games.stableford?`<span>Stableford <strong>${pts} pts</strong></span>`:''}`:`<span>${info.playingHandicap===0?'No stroke':`${Math.max(0,info.playingHandicap)} playing hcp`} · enter gross</span>`}</div>${state.games.forty?`<button type="button" class="forty-toggle ${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'selected':''}" data-forty-player="${p.id}" ${gross===''?'disabled':''}>${fortySelectionsFor(state.currentFoursome)[selectionKey(p.id,h)]?'✓ Counted':`Count in ${ballName()}`}</button>`:''}</div>`;}).join('');
  document.querySelectorAll('[data-score-player]').forEach(inp=>inp.oninput=()=>{let v=inp.value===''?'':Math.max(1,Math.min(15,Number(inp.value)));if(v!=='')inp.value=v;const h=state.currentHole,pid=inp.dataset.scorePlayer;state.scores[key(pid,h)]=v;if(v===''&&state.games.forty){const g=state.currentFoursome,k40=selectionKey(pid,h);if(fortySelectionsFor(g)[k40]){delete fortySelectionsFor(g)[k40];if(state.eventId&&state.cloudMode)api.setFortyBallSelection(state.eventId,{foursome_no:g,player_id:pid,hole:h,value:false}).catch(()=>{});}}pushScore(pid,h,v);renderScoring();});
  document.querySelectorAll('[data-forty-player]').forEach(b=>b.onclick=()=>toggleForty(b.dataset.fortyPlayer,state.currentHole));
- const holes=[...Array(18)].filter((_,i)=>ps.length&&ps.every(p=>Number(state.scores[key(p.id,i+1)]||0)>0)).length,entered=Object.values(state.scores).filter(v=>Number(v)>0).length,total=state.players.length*18;$('#groupProgress').textContent=`${show2?`Foursome ${state.currentFoursome} · `:''}${holes}/18 holes complete`;$('#roundProgress').textContent=`${entered}/${total} scores`;$('#progressFill').style.width=`${Math.round(holes/18*100)}%`;
+ const holes=[...Array(18)].filter((_,i)=>ps.length&&ps.every(p=>Number(state.scores[key(p.id,i+1)]||0)>0)).length,privateViewer=!isOrganizer()&&!!state.viewerFoursome,entered=Object.values(state.scores).filter(v=>Number(v)>0).length,total=(privateViewer?ps.length:state.players.length)*18;$('#groupProgress').textContent=`${show2?`Foursome ${state.currentFoursome} · `:''}${holes}/18 holes complete`;$('#roundProgress').textContent=`${entered}/${total} ${privateViewer?'foursome ':''}scores`;$('#progressFill').style.width=`${Math.round(holes/18*100)}%`;
  let jump=$("#jumpMissingBtn");
  if(!jump){
    jump=document.createElement("button");jump.id="jumpMissingBtn";jump.type="button";jump.className="jump-missing";
@@ -507,10 +521,10 @@ function renderGameStrip(){
 function formatRelative(value){return value===0?"E":value>0?`+${value}`:`${value}`;}
 function renderFortyTracker(){
  let host=document.querySelector("#fortyBallTracker");
- if(!host){host=document.createElement("section");host.id="fortyBallTracker";host.className="forty-ball-tracker";document.querySelector("#gameStrip").insertAdjacentElement("afterend",host);}
+ if(!host){host=document.createElement("section");host.id="fortyBallTracker";host.className="forty-ball-tracker";document.querySelector("#scorePane .hole-nav")?.insertAdjacentElement("beforebegin",host);}
  if(!state.games.forty){host.classList.add("hidden");host.innerHTML="";return;}
  const target=Number(state.games.ballTarget)===30?30:40,summary=fortySummaryFor(state.currentFoursome);host.classList.remove("hidden");
- host.innerHTML=`<div><div class="eyebrow">${target} BALL TRACKER · FOURSOME ${state.currentFoursome}</div><strong>${summary.count}/${target}</strong><span>scores counted</span></div><div><strong>${formatRelative(summary.relative)}</strong><span>relative to par</span></div><div><strong>${Math.max(0,target-summary.count)}</strong><span>still to select</span></div>`;
+ host.innerHTML=`<div><div class="eyebrow">${target} BALL TRACKER · FOURSOME ${state.currentFoursome}</div><strong>${summary.count}/${target}</strong><span>scores counted</span></div><div><strong>${formatRelative(summary.relative)}</strong><span>net relative to par</span></div><div><strong>${Math.max(0,target-summary.count)}</strong><span>still to select</span></div>`;
 }
 function renderScorecard(){const ps=groupPlayers(state.currentFoursome),holes=[...Array(18)].map((_,i)=>i+1);$('#roundScorecard').innerHTML=`<div class="scorecard-scroll"><table class="scorecard-table"><thead><tr><th>Player</th>${holes.map(h=>`<th>${h}</th>`).join('')}<th>Total</th></tr></thead><tbody>${ps.map(p=>{const vals=holes.map(h=>Number(state.scores[key(p.id,h)]||0));return `<tr><th class="name">${esc(p.name.split(' ')[0])}</th>${vals.map(v=>`<td>${v||'—'}</td>`).join('')}<td><b>${vals.reduce((a,b)=>a+b,0)||'—'}</b></td></tr>`;}).join('')}</tbody></table></div>`;}
 function nassauResults(g){const ps=groupPlayers(g),c=nassauCfg(g);if(ps.length!==4||!c.enabled)return [];return (NASSAU_PRESETS[c.preset]||[]).map(seg=>({seg,r:segmentResult({segment:seg,players:ps,getNet:(p,h)=>netFor(p,h)})}));}
@@ -532,9 +546,13 @@ function renderGames(){
  if(state.games.forty){
    const target=Number(state.games.ballTarget)===30?30:40;
    const a=fortySummaryFor(1),b=hasSecondFoursome()?fortySummaryFor(2):null;
-   const leader=!b?"Waiting for the second foursome":a.relative===b.relative?"Tied":a.relative<b.relative?"Foursome 1 leads":"Foursome 2 leads";
+   const privateViewer=!isOrganizer()&&!!state.viewerFoursome;
+   const leader=privateViewer?"Opponent scoring is private":!b?"Waiting for the second foursome":a.relative===b.relative?"Tied":a.relative<b.relative?"Foursome 1 leads":"Foursome 2 leads";
    const panel=(x,g)=>`<section class="side-result-panel"><h3>Foursome ${g}</h3><p>${groupPlayers(g).map(p=>esc(p.name.split(" ")[0])).join(" · ")}</p><div class="side-kpis"><div><strong>${formatRelative(x.relative)}</strong><span>Relative to par</span></div><div><strong>${x.count}/${target}</strong><span>Scores counted</span></div><div><strong>${Math.max(0,target-x.count)}</strong><span>Still to select</span></div></div><p class="notice">Only scores explicitly marked <b>Counted</b> on Score Entry are included.</p></section>`;
-   blocks.push(`<div class="forty-results"><div class="side-head"><div><div class="eyebrow">ROUND SIDE GAME</div><h2>${target} Ball — Live Scoring</h2></div><div class="wager-chip">$${state.games.fortyWager} per player</div></div><div class="side-summary"><div><b>Live status</b><span>${leader}</span></div><div><b>Privacy</b><span>Each foursome sees only its own individual hole scores.</span></div></div>${panel(a,1)}${b?panel(b,2):""}<p class="muted">Lower selected net total relative to par wins.</p></div>`);
+   const visiblePanels=privateViewer
+     ?panel(state.viewerFoursome===1?a:b,state.viewerFoursome)
+     :`${panel(a,1)}${b?panel(b,2):""}`;
+   blocks.push(`<div class="forty-results"><div class="side-head"><div><div class="eyebrow">ROUND SIDE GAME</div><h2>${target} Ball — Live Scoring</h2></div><div class="wager-chip">$${state.games.fortyWager} per player</div></div><div class="side-summary"><div><b>Live status</b><span>${leader}</span></div><div><b>Privacy</b><span>${privateViewer?`You can see only Foursome ${state.viewerFoursome}'s scores.`:"Private links keep each foursome's individual scores separate."}</span></div></div>${visiblePanels}<p class="muted">Lower selected net total relative to par wins.</p></div>`);
  }else{
    for(const g of [1,2]){
      const ps=groupPlayers(g),c=nassauCfg(g);if(!ps.length||!c.enabled)continue;
@@ -708,17 +726,24 @@ function renderCommand(){
 }
 $('#commandBtn').onclick=async()=>{if(!isOrganizer())return alert('Command Center is available on the organizer device.');$('#scoringView').classList.add('hidden');$('#commandView').classList.remove('hidden');await refreshCommandData();renderCommand();};$('#closeCommandBtn').onclick=()=>{$('#commandView').classList.add('hidden');$('#scoringView').classList.remove('hidden');renderScoring();};
 async function loadSharedEventFromUrl(){
- const eventId=new URL(location.href).searchParams.get("event");
+ const url=new URL(location.href),eventId=url.searchParams.get("event");
  if(!eventId)return false;
  try{
+   const organizerToken=loadOrganizerToken(eventId);
+   saveOrganizerToken(eventId,organizerToken);
+   state.teamAccess=loadTeamAccess(eventId);
+   const linkGroup=Number(url.searchParams.get("foursome")||0),linkAccess=String(url.searchParams.get("access")||"");
+   state.linkFoursome=[1,2].includes(linkGroup)?linkGroup:null;
+   if(!organizerToken&&state.linkFoursome&&linkAccess)api.setViewerAccess(eventId,state.linkFoursome,linkAccess);
    const snap=await api.snapshot(eventId);
-   state.eventId=eventId;state.cloudMode=true;saveOrganizerToken(eventId,loadOrganizerToken(eventId));state.outbox=loadOutbox(eventId);
+   state.eventId=eventId;state.cloudMode=true;state.outbox=loadOutbox(eventId);
+   if(snap.team_access)saveTeamAccess(eventId,snap.team_access);
    state.event={name:snap.event.name,date:snap.event.event_date};
    state.players=(snap.players||[]).map(p=>({
      id:p.id,name:p.display_name,index:Number(p.handicap_index),tee:p.tee_key,foursome:Number(p.foursome_no)
    }));
    const priorViewer=loadViewer(eventId);
-   if(!isOrganizer()&&priorViewer&&state.players.some(p=>p.id===priorViewer.playerId&&Number(p.foursome)===Number(priorViewer.foursome))){state.viewerPlayerId=priorViewer.playerId;state.viewerFoursome=Number(priorViewer.foursome);}
+   if(!isOrganizer()&&priorViewer&&Number(priorViewer.foursome)===Number(state.linkFoursome)&&state.players.some(p=>p.id===priorViewer.playerId&&Number(p.foursome)===Number(priorViewer.foursome))){state.viewerPlayerId=priorViewer.playerId;state.viewerFoursome=Number(priorViewer.foursome);}
    const mapped=scoreMapFromSnapshot(snap);state.scores=mapped.scores;state.scoreRevisions=mapped.revisions;
     state.remoteGames=snap.games||[];
     state.games.nassauByGroup={1:{enabled:false,preset:"5-5-5-1-1-1",wager:""},2:{enabled:false,preset:"5-5-5-1-1-1",wager:""}};
@@ -746,7 +771,13 @@ async function loadSharedEventFromUrl(){
    state.visited18=!!resume?.visited18;
    renderScoring();startPolling();setCloudStatus("CLOUD LIVE","ok");
    return true;
- }catch(err){console.warn(err);return false;}
+ }catch(err){
+   console.warn(err);
+   $("#builderView")?.classList.add("hidden");
+   const old=$("#joinGameModal");if(old)old.remove();
+   const host=document.createElement("div");host.id="joinGameModal";host.innerHTML=`<div class="modal-backdrop join-backdrop"><section class="modal-card join-card"><div class="eyebrow">PRIVATE GAME LINK REQUIRED</div><h2>Ask the organizer for a new link</h2><p>This game keeps each foursome's 40 Ball scores private. Open the private link created for your foursome.</p></section></div>`;document.body.appendChild(host);
+   return true;
+ }
 }
 async function checkEnvironment(){
  const badge=document.querySelector(".env-badge");

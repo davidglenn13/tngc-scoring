@@ -41,6 +41,7 @@ export async function onRequestPut(context){
       }
       if(type==="forty_ball"){
         const target=Number(g.config?.target_count)===30?30:40,per=target===30?3:4;
+        if(wager<=0)throw new Error(`Enter the ${target} Ball wager`);
         if(roster[1]!==per||roster[2]!==per)throw new Error(`${target} Ball requires two groups of ${per}`);
       }
       return context.env.DB.prepare(

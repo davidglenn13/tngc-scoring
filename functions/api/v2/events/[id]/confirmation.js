@@ -1,4 +1,4 @@
-import {json,bad,cleanId,requireEvent,requireOrganizer,audit} from "../../_common.js";
+import {json,bad,cleanId,requireEventAccess,requireOrganizer,audit} from "../../_common.js";
 
 async function groupComplete(env,eventId,g){
   const players=await env.DB.prepare(
@@ -17,7 +17,6 @@ async function groupComplete(env,eventId,g){
 export async function onRequestPut(context){
   try{
     const eventId=cleanId(context.params.id);
-    await requireEvent(context.env,eventId);
     const body=await context.request.json();
     const g=Number(body.foursome_no);
     const action=String(body.action||"confirm");
@@ -25,6 +24,8 @@ export async function onRequestPut(context){
     if(![1,2].includes(g))return bad("Invalid foursome");
 
     if(action==="confirm"){
+      const access=await requireEventAccess(context,eventId);
+      if(!access.organizer&&g!==Number(access.foursome))return bad("This private link can only confirm its own foursome",403);
       if(!await groupComplete(context.env,eventId,g))return bad("Scorecard is not complete",409);
       await context.env.DB.prepare(
         `INSERT INTO v2_scorecard_confirmations(event_id,foursome_no,status,confirmed_at,confirmed_by,updated_at)

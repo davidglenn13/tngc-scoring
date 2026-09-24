@@ -27,6 +27,7 @@ export async function onRequestPut(context){
 
     if(mode==="forty_ball"){
       const target=Number(b.target_count)===30?30:40,per=target===30?3:4;
+      if(wager<=0)return bad(`Enter the ${target} Ball wager`,409);
       if(g!==1)return bad(`${target} Ball must be selected from Foursome 1`,409);
       const rosterResult=await context.env.DB.prepare(
         "SELECT foursome_no,COUNT(*) count FROM v2_players WHERE event_id=? GROUP BY foursome_no"
