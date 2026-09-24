@@ -59,29 +59,44 @@ export function counterPress(presses,parent){
   return parent?(presses||[]).find(p=>String(p.parentPressId||"")===String(parent.id)):null;
 }
 
-export function pressAvailability({segment,players,presses=[],getNet}){
+export function pressAvailability({segment,players,presses=[],getNet,currentHole=null}){
   if(segment.singleHole) return {kind:null,reason:"No presses on standalone one-hole matches"};
   const next=nextUnplayedHole({segment,players,getNet});
   if(next===null) return {kind:null,reason:"Match complete"};
   const original=originalPress(presses,segment.key);
 
+  // Ballyhack's live workflow evaluates the match only through the current
+  // hole. A press is offered on the next unplayed hole, before that hole's
+  // scores are entered; if a press already exists, the opposing side may
+  // press that bet from the same next unplayed hole.
+  const through=currentHole===null?null:Number(currentHole);
+  const currentComplete=through!==null&&players.length>0&&players.every(p=>getNet(p,through)!==null);
+  const evaluatedThrough=through===null?null:(currentComplete?through:through-1);
+  const standing=segmentResult({
+    segment,
+    players,
+    getNet,
+    throughHole:evaluatedThrough
+  });
+
   if(!original){
     if(next===segment.holes[0]) return {kind:null,reason:"Earliest press is the second hole of the segment",nextHole:next};
-    const standing=segmentResult({segment,players,getNet});
     if(!standing.loser) return {kind:null,reason:"Base match is all square",nextHole:next};
     return {kind:"press",nextHole:next,pressedBy:standing.loser,standing};
   }
 
-  const counter=counterPress(presses,original);
-  if(counter) return {kind:null,reason:"Press has already been pressed back",nextHole:next};
-  const opposite=original.pressedBy==="a"?"b":"a";
-  if(next<=Number(original.fromHole))
-    return {kind:null,reason:`Press the Press becomes available after Hole ${original.fromHole} is completed`,nextHole:next};
-
-  // Ballyhack behavior: the opposing side may press the original press back on
-  // the next unplayed hole once the original press has started. It does not
-  // require that side to be losing the press at that moment.
-  return {kind:"counter",nextHole:next,pressedBy:opposite,parentPressId:original.id,standing:pressResult({segment,players,press:original,getNet})};
+  const latest=[...presses].filter(p=>p.segmentKey===segment.key)
+    .sort((a,b)=>Number(b.fromHole)-Number(a.fromHole))[0]||original;
+  const duplicate=presses.some(p=>p.segmentKey===segment.key&&Number(p.fromHole)===Number(next));
+  if(duplicate)return {kind:null,reason:"A press has already been recorded from this hole",nextHole:next};
+  const opposite=latest.pressedBy==="a"?"b":"a";
+  return {
+    kind:"counter",
+    nextHole:next,
+    pressedBy:opposite,
+    parentPressId:latest.id,
+    standing:pressResult({segment,players,press:latest,getNet})
+  };
 }
 
 export function sanitizePresses({segment,presses=[],nextHole}){

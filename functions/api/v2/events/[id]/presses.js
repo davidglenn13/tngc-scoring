@@ -65,7 +65,7 @@ export async function onRequestPost(context){
        FROM v2_presses WHERE game_id=? ORDER BY created_at,id`
     ).bind(gameId).all();
     const existing=pressRows(existingResult.results||[]);
-    const available=pressAvailability({segment,players,presses:existing,getNet});
+    const available=pressAvailability({segment,players,presses:existing,getNet,currentHole:requestedHole});
 
     const expectedKind=requestedParent?"counter":"press";
     if(available.kind!==expectedKind)return bad(available.reason||"Press is not available",409);

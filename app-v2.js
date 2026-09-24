@@ -456,21 +456,17 @@ function renderLiveNassau(){
  const g=state.currentFoursome,ps=groupPlayers(g),seg=currentNassauSegment();if(ps.length!==4||!seg){host.classList.add("hidden");return;}
  const result=segmentResult({segment:seg,players:ps,getNet:(p,h)=>netFor(p,h),throughHole:state.currentHole});
  const teamName=t=>t.map(p=>p.name.split(" ")[0]).join(" / ");
- const standing=!result.played?"Not started":result.aWins===result.bWins?"All square":`${teamName(result.aWins>result.bWins?result.teams[0]:result.teams[1])} ${Math.abs(result.aWins-result.bWins)} up`;
- const presses=pressesForGroup(g).filter(p=>p.segmentKey===seg.key),avail=pressAvailability({segment:seg,players:ps,presses,getNet:(p,h)=>netFor(p,h)});
+ const standing=!result.played?"All square":result.aWins===result.bWins?"All square":`${teamName(result.aWins>result.bWins?result.teams[0]:result.teams[1])} ${Math.abs(result.aWins-result.bWins)} up`;
+ const presses=pressesForGroup(g).filter(p=>p.segmentKey===seg.key),avail=pressAvailability({segment:seg,players:ps,presses,getNet:(p,h)=>netFor(p,h),currentHole:state.currentHole});
  const pressTeam=avail.pressedBy?(avail.pressedBy==="a"?result.teams[0]:result.teams[1]):null;
  const action=avail.kind==="counter"?"Press the Press":avail.kind==="press"?"Press Now":seg.singleHole?"No Press":"Press Unavailable";
- const original=presses.find(p=>!p.parentPressId)||null,counter=original?presses.find(p=>String(p.parentPressId||"")===String(original.id)):null;
- const originalStanding=original?pressResult({segment:seg,players:ps,press:original,getNet:(p,h)=>netFor(p,h)}):null;
- const pressStanding=!originalStanding?.played?"Not started":originalStanding.aWins===originalStanding.bWins?"All square":`${teamName(originalStanding.aWins>originalStanding.bWins?originalStanding.teams[0]:originalStanding.teams[1])} ${Math.abs(originalStanding.aWins-originalStanding.bWins)} up`;
- let pressStatus=seg.singleHole?`${seg.label} is a standalone full-wager match. Presses are not available.`:avail.kind==="press"?`${teamName(pressTeam)} may press the base match on Hole ${avail.nextHole}.`:avail.kind==="counter"?`${teamName(pressTeam)} may Press the Press on Hole ${avail.nextHole}. This creates a separate $${cfg.wager} wager.`:counter?`Press the Press was recorded on Hole ${counter.fromHole}. Both press bets are active.`:avail.reason||"No press is available.";
+ const standingText=standing;
+ const pressStatus=seg.singleHole?`${seg.label} is a standalone Nassau match; presses are not available.`:avail.kind?`${teamName(pressTeam)} may ${avail.kind==="counter"?"press the press":"press"} from Hole ${avail.nextHole}.`:avail.reason||"No press is available.";
  host.classList.remove("hidden");
- host.innerHTML=`<div class="eyebrow">FOURSOME ${g} · LIVE NASSAU · ${esc(cfg.preset)}</div><div class="nassau-matchup-heading"><span>CURRENT MATCHUP · ${esc(seg.label)}</span><strong>$${cfg.wager} per base match and press</strong></div>
- <div class="nassau-teams"><div><span>TEAM 1</span><b>${esc(teamName(result.teams[0]))}</b></div><strong>PLAYING</strong><div><span>TEAM 2</span><b>${esc(teamName(result.teams[1]))}</b></div></div>
- <div class="nassau-title"><div><h2>Press Bet</h2><p>${esc(pressStatus)}</p></div><div class="nassau-standing"><span>BASE MATCH STANDING</span><strong>${esc(standing)}</strong></div></div>
- <div class="nlp-grid"><button id="addLivePressBtn" type="button" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}${avail.nextHole?` · Hole ${avail.nextHole}`:""}</button><div class="nlp-side"><span>Pressing side</span><b>${pressTeam?esc(teamName(pressTeam)):"—"}</b></div><div class="nlp-side"><span>${original?"Original press standing":"Down by"}</span><b>${original?esc(pressStanding):result.loser?`${Math.abs(result.margin)} hole${Math.abs(result.margin)===1?"":"s"}`:"—"}</b></div><div class="nlp-side"><span>New bet starts</span><b>${avail.kind?`Hole ${avail.nextHole}`:"—"}</b></div></div>
- <div class="nlp-foot">${seg.singleHole?`Standalone match value: $${cfg.wager} · No press permitted`:`<b>${presses.length}</b> press bet${presses.length===1?"":"s"} recorded · Each uses the $${cfg.wager} Nassau wager${original?` · Original press: Hole ${original.fromHole}`:""}${counter?` · Press the Press: Hole ${counter.fromHole}`:""}`}</div>
- ${presses.length?`<div class="press-history">${presses.map(pr=>{const o=pressResult({segment:seg,players:ps,press:pr,getNet:(p,h)=>netFor(p,h)});let st="Live";if(o?.complete)st=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.teams[0]:o.teams[1])} win`;return `<div><span><b>${pr.parentPressId?"Press the Press":"Press"}</b><small>Starts Hole ${pr.fromHole} · $${pr.amount}</small></span><strong>${esc(st)}</strong></div>`;}).join("")}</div>`:""}`;
+ host.innerHTML=`<div class="eyebrow">LIVE NASSAU · ${esc(seg.label).toUpperCase()}</div>
+ <div class="press-head"><div><h3>Press Bet</h3><p>${esc(pressStatus)}</p></div><button id="addLivePressBtn" class="btn primary" ${!avail.kind||!isOrganizer()?"disabled":""}>${action}</button></div>
+ <div class="press-meta"><span>Standing <b>${esc(standingText)}</b></span><span>Wager <b>$${cfg.wager}</b></span><span>Recorded <b>${presses.length}</b></span></div>
+ ${presses.length?`<div class="press-list">${presses.map(pr=>{const o=pressResult({segment:seg,players:ps,press:pr,getNet:(p,h)=>netFor(p,h)});let st="Pending";if(o?.complete)st=o.winner==="half"?"Halved":`${teamName(o.winner==="a"?o.teams[0]:o.teams[1])} win`;return `<div class="press-row"><span>${pr.parentPressId?"Press the Press · ":""}From Hole ${pr.fromHole} · $${pr.amount}</span><b>${esc(st)}</b></div>`;}).join("")}</div>`:""}`;
  document.querySelector("#addLivePressBtn")?.addEventListener("click",()=>addLivePress(avail));
 }
 

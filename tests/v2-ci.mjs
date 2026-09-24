@@ -33,6 +33,11 @@ if(pressAvailability({segment:NASSAU_PRESETS["5-5-5-1-1-1"][3],players:ps,presse
 const counterNet=(p,h)=>h===1?({A:4,B:4,C:5,D:6}[p.id]):h===2?4:null;
 const counter=pressAvailability({segment:seg,players:ps,presses:[{id:"p1",segmentKey:seg.key,fromHole:2,pressedBy:"b",parentPressId:null}],getNet:counterNet});
 if(counter.kind!=="counter"||counter.nextHole!==3||counter.pressedBy!=="a"||counter.parentPressId!=="p1")fail("Ballyhack Press the Press parity");
+const duplicateNet=(p,h)=>h===1?({A:4,B:4,C:5,D:6}[p.id]):null;
+const sameHole=pressAvailability({segment:seg,players:ps,presses:[{id:"p1",segmentKey:seg.key,fromHole:2,pressedBy:"b",parentPressId:null}],getNet:duplicateNet,currentHole:2});
+if(sameHole.kind!==null||sameHole.nextHole!==2)fail("Ballyhack duplicate-hole press guard");
+const chained=pressAvailability({segment:seg,players:ps,presses:[{id:"p1",segmentKey:seg.key,fromHole:2,pressedBy:"b",parentPressId:null},{id:"p2",segmentKey:seg.key,fromHole:3,pressedBy:"a",parentPressId:"p1"}],getNet:(p,h)=>h===1?({A:4,B:4,C:5,D:6}[p.id]):h===2?4:null,currentHole:3});
+if(chained.kind!==null||chained.nextHole!==3)fail("Ballyhack chained press duplicate-hole guard");
 
 const selections={};let n=0;
 for(const p of ps)for(let h=1;h<=18&&n<40;h++){selections[selectionKey(p.id,h)]=true;n++;}
